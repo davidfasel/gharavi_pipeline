@@ -222,6 +222,8 @@ system "perl $PIPELINE/Pipeline_VCFtoTable.pl -m $MAF_Filter -f $vcftools_filt >
 $? == 0 or die "Pipeline_VCFtoTable.pl script failed";
 
 
+# MAF filtering is now handled by Pipeline_VCFtoTable.pl based on Annovar's Max MAF
+# which is less powerful since a population can't be specified
 # say "== Creating annotation file of rare variants using MAF < $MAF_Filter...";
 # system "perl $PIPELINE/Pipeline_SelectRare.pl  $table_file $Population $MAF_Filter > $rare_file";
 #   $? == 0 or die "Pipeline_SelectRare.pl script failed";
@@ -316,13 +318,13 @@ say "== $time: Finished Pipeline.";
 ###  Functions  ###
 
 sub usage {
-    say "
-Error: \n$_[0]\n\n
-Usage: ./Pipeline.pl -f VCF_file -p T -m 0.01 \n\n
-Population options are: \n  T (Default - All Populations), E (Europian), A (African) and EA (Europian & African)
-sMAF_threshold is between 0 and 1 (ex. 0.01 for frequency 1 in 100), default is 0.01 \n\n";
+    say "Error: \n$_[0]\n\n
+      Usage: ./Pipeline.pl -m 0.01 -f VCF_file  \n\n
+      MAF_threshold is between 0 and 1 (ex. 0.01 for frequency 1 in 100), default is 0.01 \n\n";
     exit 1;
 }
+# removed from Usage message
+#Population options are: \n  T (Default - All Populations), E (Europian), A (African) and EA (Europian & African)
 
 sub getTime() {
   my $ellapsedSeconds = time() - $^T;
