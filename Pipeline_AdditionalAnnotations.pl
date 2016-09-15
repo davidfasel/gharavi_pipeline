@@ -8,6 +8,7 @@ use Getopt::Long;  #process command line arguments
 my $GENE_HEADER = "GENES";
 my $DATA_NA = ".";
 my $PUBLIC_DB = "/media/Data/public_databases";
+
 my $KIDNEY_GENES = "$PUBLIC_DB/GeneLists/KidneyGenes6.txt";
 my $MOUSE_GENES  = "$PUBLIC_DB/GeneLists/CAKUT_genes-mouse.txt";
 my $OMIM         = "$PUBLIC_DB/GeneLists/OMIM_genemap.txt";
@@ -18,6 +19,11 @@ my $GDI          = "$PUBLIC_DB/GDI/GDI_full_10282015.txt";
 my $EXAC         = "$PUBLIC_DB/Exac/exac_LOF_alleles_by_gene.txt";
 my $CONSTRAINT   = "$PUBLIC_DB/Exac/forweb_cleaned_exac_r03_march16_z_data_pLI.txt";
 my $EMERGE       = "$PUBLIC_DB/GeneLists/EmergeGenes.txt";
+my $CADD_MSC       = "$PUBLIC_DB/GeneLists/MSC_CADD_95.tsv";
+my $SIFT_MSC       = "$PUBLIC_DB/GeneLists/MSC_Sift_95.tsv";
+my $Poly_MSC       = "$PUBLIC_DB/GeneLists/MSC_PolyPhen_95.tsv";
+
+
 
 # IMPORTANT: update these header names in main Pipeline
 my @header = qw( 
@@ -29,10 +35,12 @@ my @header = qw(
   LOFRare.al  TruncRare.al  FrameRare.al  SpliceRare.al  MisRare.al.Poly>0.9
   LOF.al  Trunc.al  Frame.al  Splice.al 
   Exp_LOF.var  N_LOF.var Z_LOF  pLI
+  CADD_MSC  PolyPhen_MSC  SIFT_MSC
 
 );
 
-my (%kidney_disorder, %mouse_genes, %omim, %evsburden, %rvi, %hi, %hii, %gdi, %exac, %constraint, %emerge);
+my (%kidney_disorder, %mouse_genes, %omim, %evsburden, %rvi, %hi, %hii, 
+      %gdi, %exac, %constraint, %emerge, %msc_cadd, %msc_sift, %msc_poly);
 
 # Hash Kidney disorders file by gene name
 # 1636	ACE	angiotensin I converting enzyme (peptidyl-dipeptidase A) 1	17q23	Renal tubular dysgenesis	(+)106180 		recessive
@@ -145,6 +153,30 @@ while(my $line = <FILE>){
 }
 close FILE;
 
+open(FILE, "$CADD_MSC") or die "Unable to open CADD_MSC file: $CADD_MSC";
+while(my $line = <FILE>){
+    chomp $line;
+    my ($gene, $msc) = (split(/\t/, $line))[0,8];
+    $msc_cadd{$gene} = $msc;
+}
+close FILE;
+
+open(FILE, "$Poly_MSC") or die "Unable to open Poly_MSC file: $Poly_MSC";
+while(my $line = <FILE>){
+    chomp $line;
+    my ($gene, $msc) = (split(/\t/, $line))[0,8];
+    $msc_poly{$gene} = $msc;
+}
+close FILE;
+
+open(FILE, "$SIFT_MSC") or die "Unable to open SIFT_MSC file: $SIFT_MSC";
+while(my $line = <FILE>){
+    chomp $line;
+    my ($gene, $msc) = (split(/\t/, $line))[0,8];
+    $msc_sift{$gene} = $msc;
+}
+close FILE;
+
 
 #print the header
 my $line = <STDIN>;
@@ -183,7 +215,8 @@ while(my $line = <STDIN>) {
         @omim_disorders,  @emerge_ass,
         @exac_lof_r, @exac_trunc_r, @exac_frame_r, @exac_splice_r, @exac_mis,
         @exac_lof, @exac_trunc, @exac_frame, @exac_splice, 
-        @const_explof, @const_nlof, @const_lofz, @const_pli, );
+        @const_explof, @const_nlof, @const_lofz, @const_pli, 
+        @msc_cadds, @msc_polys, @msc_sifts);
       
     my @all_arrays = (
         \@rvi_scores, \@rvi_percentiles, \@hi_scores, \@hii_scores, \@hi_percentiles, \@hii_percentiles, 
@@ -194,6 +227,7 @@ while(my $line = <STDIN>) {
         \@exac_lof_r, \@exac_trunc_r, \@exac_frame_r, \@exac_splice_r, \@exac_mis,
         \@exac_lof, \@exac_trunc, \@exac_frame, \@exac_splice, 
         \@const_explof, \@const_nlof, \@const_lofz, \@const_pli, 
+        \@msc_cadds, \@msc_polys, \@msc_sifts
     );
     for my $gene (@genes){
         if(exists $kidney_disorder{$gene}){
@@ -247,6 +281,15 @@ while(my $line = <STDIN>) {
         if(exists $emerge{$gene}) {
             push (@emerge_ass, $emerge{$gene});
         } 
+        if(exists $msc_cadd{$gene}) {
+            push (@msc_cadds, $msc_cadd{$gene});
+        }
+        if(exists $msc_poly{$gene}) {
+            push (@msc_polys, $msc_poly{$gene});
+        }
+        if(exists $msc_sift{$gene}) {
+            push (@msc_sifts, $msc_sift{$gene});
+        }
     }
     #remove any that are just whitespace
     @kid_disorder   = grep { /\S/ } @kid_disorder;

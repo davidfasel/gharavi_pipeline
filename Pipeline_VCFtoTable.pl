@@ -21,12 +21,11 @@ my (%dbsnp);
 # NOTE!  if any of these headers change, they need to be updated in the main pipeline file
 my @header = qw(
     CHROM  POS  ID  avsnp147  REF  ALT  QUAL  FILTER  INFO  FORMAT GENOTYPES 
-    Sample_ID(GT)  Samples_With_Variant  AD_Pass  Missing  MAF_max  
+    Sample_ID(GT) Samples_With_Variant  Hets  Homs  AD_Pass  Missing  MAF_max  
     
-    CADD  polyPhen  PhastCons  GERPConsScore     SVM_PROBABILITY SVM_POSTERIOR
+    SVM_PROBABILITY SVM_POSTERIOR
     
-    GENES
-    Clinvar
+    GENES  CLINSIG  CLNDBN
 
     ==SeattleSeq
     geneList
@@ -43,6 +42,10 @@ my @header = qw(
     tfbs
     PPI
     proteinAccession
+    CADD  
+    PolyPhen
+    PhastCons  
+    GERPConsScore
     granthamScore
     microRNAs
     
@@ -92,7 +95,7 @@ else {
 my @sample_ids;
 while(my $line = <FILE>)
 {   
-    print STDERR "Processing Line $. \r" if ($. % 1000 == 0);  
+    print STDERR "          Processing Line $. \r" if ($. % 1000 == 0);  
     
     chomp($line);
     my @var=split(/\t/,$line);
@@ -136,20 +139,24 @@ while(my $line = <FILE>)
     # count the samples and get their ID's, Genotypes, and Depths, Number that are missing and 
     # whether Allelic Depth ratio is greater than ALLELIC_DEPTH_RATIO for hets
     my ($samp) = ("");
-    my $num_samples = 0;
+    my ($num_samples, $hets, $homs) = (0, 0, 0);
     my $genotypes = "";
     my $missing = 0;
     my $PASS_AD = 0;
     
-    for (my $c=9; $c < @var; $c++) {
+    for (my $c = 9; $c < @var; $c++) {
         my @gt_fields = split(/\:/, $var[$c]);
-        my @gt = split("[/\|]", $gt_fields[0]);  #split genotype by / or | (phased genotype, which is rare but does exist)
+        
+        #split genotype by / or | (phased genotype)
+        my @gt = split("[/\|]", $gt_fields[0]);  
                 
         if ($gt[0] eq ".") {  
             $missing++;  # count missing genotypes
         }
         elsif ($gt_fields[0] !~ "^0.0" ) {
             $num_samples++;
+            $gt[0] eq $gt[1] ? $homs++ : $hets++;
+            
             $genotypes .= "$var[$c];";
             $samp .= $sample_ids[$c-9] . "($gt_fields[0]),"; 
             
@@ -191,30 +198,35 @@ while(my $line = <FILE>)
     @genes = uniq(grep {$_ ne "."} @genes);
     my $gene = join(",", @genes) . ",";  # append a comma to prevent excel from converting some genes to dates
     
-    my $clinvar = $info_hash{"clinvar_20160302"} || $MISSING;
-    $clinvar =~ s/\\x2c/,/g; $clinvar =~ s/\\x3b/;/g; $clinvar =~ s/\\x3d/=/g;  #fix coded chars
+    my $clinsig = $info_hash{"CLINSIG"} || $MISSING;
+    my $clindbn = $info_hash{"CLNDBN"} || $MISSING;
+    my $clnacc = $info_hash{"CLNACC"} || $MISSING;
+    my $clndsdb = $info_hash{"CLNDSDB"} || $MISSING;
+    my $clndsdbid = $info_hash{"CLNDSDBID"} || $MISSING;
+    my $clinout = join("|", $clindbn, $clnacc, $clndsdb, $clndsdbid);
+    $clinout =~ s/\\x2c/,/g;  #commas are encoded, so change back to comma
+    $clinout = "." if $clinsig eq ".";
     
     my @out = (
       $var[0], $var[1],  $var[2],
       $info_hash{"avsnp147"} || $MISSING,
       $var[3], $var[4], $var[5], $var[6], $var[7],
-      
       $format,
       $genotypes,
       $samp,
       $num_samples,
+      $hets,
+      $homs,
       $PASS_AD,
       $missing,
       $MAF_max,
-      $info_hash{"CADD"} || $MISSING,
-      $info_hash{"PH"} || $MISSING,
-      $info_hash{"CP"} || $MISSING,
-      $info_hash{"CG"} || $MISSING,
+
       $info_hash{'SVM_PROBABILITY'} || $MISSING, 
       $info_hash{'SVM_POSTERIOR'} || $MISSING,
       
       $gene,
-      $clinvar,
+      $clinsig,
+      $clinout,
     );
     
 
@@ -226,7 +238,7 @@ while(my $line = <FILE>)
     #PAC:proteinAccession GS:granthamScore MR:microRNAs
     push(@out, "==");
     my @ssFields = qw(
-      GL FG  FD  GM  AAC  PP  CDP  AA  CA  DSP  KP  TFBS  PPI  PAC  GS  MR
+      GL FG  FD  GM  AAC  PP  CDP  AA  CA  DSP  KP  TFBS  PPI  PAC  CADD  PH  CP  CG  GS  MR
     );
     for my $item (@ssFields) {
       my $value =  (exists $info_hash{$item}) ? $info_hash{$item} : $MISSING;
@@ -338,6 +350,8 @@ while(my $line = <FILE>)
     
 # end while loop
 }
+
+print STDERR "\n";
 
 close FILE;
 

@@ -3,13 +3,15 @@ use warnings;
 use strict;
 use feature 'say';
 use Getopt::Long;  #process command line arguments
+use Cwd 'abs_path';
 use List::MoreUtils qw(first_index);
 
-# Global Pipeline Variables
-my $SOFTWARE  = "./software";              #"/media/Data/software";
-my $PIPELINE  = ".";                       #"/media/Data/pipeline/v3";
-my $PUBLIC_DB = "./public_databases";      #"/media/Data/public_databases";
 
+
+#### Global Pipeline Variables
+my $SOFTWARE  = "/media/Data/software";        
+my $PIPELINE  = "/media/Data/pipeline/v3";     
+my $PUBLIC_DB = "/media/Data/public_databases";
 
 #may also want to remove all HOMO REF calls using: "MIN(AC)>=1 && (QUAL>=50  || (QUAL>=30 && MAX(FMT/DP)>=8))"
 my $QUALITY_FILTER = "QUAL>=50  || (QUAL>=30 && MAX(FMT/DP)>=8)"; 
@@ -32,15 +34,15 @@ my $JAVAPATH = "./:/media/Data/software/jars/*:" .
   "/media/Data/software/jars/httpunit-1.7/lib/*:" .
   "/media/Data/software/jars/httpunit-1.7/jars/*:";
 $JAVAPATH .= $PIPELINE;
-my $time = &getTime;
 
-# Get and Validate the arguments
+
+
+
+
+#### Get and Validate the arguments
 my ($vcf_file, $Population, $MAF_Filter, $bFinalAnnotationOnly);
 my $bSubmitToSeaSeq = 0;
 
-
-
-#### set options from paramaters
 GetOptions (
     'file|f=s' => \$vcf_file,
     'pop|p:s' => \$Population,
@@ -49,9 +51,7 @@ GetOptions (
     'final-only|o' => \$bFinalAnnotationOnly,
 )  or &usage("");
 
-
-
-#### Validate the Parameters
+# Validate
 ( -e $vcf_file) or &usage("File not found: $vcf_file");
 $MAF_Filter //= 0.01; # assign if undefined, 0 is ok (Novel variants)
 $Population ||= "T";
@@ -59,7 +59,9 @@ $Population ||= "T";
 ($MAF_Filter >= 0 && $MAF_Filter < 1) or &usage("MAF threshold must be between 0 and 1.");
 
 
-#### Mmake sure VCF file is properly "bgzip" zipped
+
+#### Create output file names
+# Make sure VCF file is properly "bgzip" zipped
 my $raw_vcf_file = $vcf_file;
 
 ($vcf_file !~ /\.gz$/i) || ($vcf_file !~ /\.vcf$/i) or &usage("File must be .vcf or vcf.gz.");
@@ -72,11 +74,6 @@ if ($vcf_file !~ /\.gz$/i) {
 }
 $raw_vcf_file  =~ s/\.vcf\.gz$//i;  # strip .vcf.gz extension
 
-
-say "\n== Starting Pipeline for $vcf_file... \n";
-say "\n== Please note that the input VCF must be aligned to hg19/37. \n";
-
-# Output file names
 my $rare = ($MAF_Filter == 0) ? "Novel" : "MAF$MAF_Filter";
 my $ss = $bSubmitToSeaSeq ? "SS_" : "";
 my $filt_file  =     "$raw_vcf_file.temp.vcf";
@@ -89,6 +86,7 @@ my $annovar_log =    "$raw_vcf_file.annovar.log";
 my $table_file =     "$raw_vcf_file.$ss" . "Ann_Eff_" . $rare . ".tsv";
 my $function_file =  "$raw_vcf_file.$ss" . "Ann_Eff_" . $rare . "_func.tsv";
 my $disorder_file =  "$raw_vcf_file.$ss" . "Ann_Eff_" . $rare . "_func_disorders.tsv";
+my $comphet_summary ="$raw_vcf_file.$ss" . "Ann_Eff_" . $rare . "_CompHets.tsv";
 my $input_file =     $filt_file;
 
 if ($bFinalAnnotationOnly) {
@@ -100,16 +98,25 @@ if ($bFinalAnnotationOnly) {
 }
 
 
+
+say "\n== Starting Pipeline ==";
+say "== Input VCF must be aligned to hg19/37. \n";
+say "== VCF file: $vcf_file...\n";
+
+
+
 #### Index, QC and Normalize the VCF file with bcftools and vcftools
 # Index the file
+my $time = &getTime;
 if (not -e "$vcf_file.csi") {
-    say "== Indexing VCF file...";
+    say "== $time: Indexing VCF file...";
     system "bcftools index -f $vcf_file";
     $? == 0 or die "Failed to index VCF file.  Ensure the VCF file has been zipped using bgzip (not gzip)";
 }
 
 # Quality control: filters support MIN, MAX, AVG.
-say "== Filtering by $QUALITY_FILTER...";
+$time = &getTime;
+say "== $time: Filtering by $QUALITY_FILTER...";
 
 #open(FILE, "bcftools view --exclude-uncalled --include '$QUALITY_FILTER' --apply-filters '$PASS_FILTER' $vcf_file | ") or
 #    die "Couldn't filter $vcf_file";
@@ -117,17 +124,12 @@ say "== Filtering by $QUALITY_FILTER...";
 open(FILE, "bcftools view --exclude-uncalled --include '$QUALITY_FILTER' $PASS_FILTER $vcf_file | ") or
     die "Couldn't filter $vcf_file";
 
-
-
-#### if normalizing fails, run VCF file through vcf-validator
+# Note: if normalizing fails, debug VCF file with vcf-validator from the vcftools software package
 open(FILT, "| bcftools norm -m -any -f $HG19_FASTA >  $filt_file") or die "Normalizing failed.";
 
 while (my $line = <FILE>) {
     print FILT &cleanVCFLine(\$line);
 }
-
-#system "bgzip $filt_file";
-#$filt_file = "$filt_file.gz";
 
 close FILE;
 close FILT;
@@ -161,14 +163,13 @@ else {
 
 
 
+#### Annovar Annotations
+# see comments at end of this file for Annovar update/download instructions
 
-
-#### Start Annovar and SnpEff Annotations
-# see comments at end of this file for download instructions
 $time = &getTime;
 say "== $time: Running Annovar... ";
 
-######  REMEMBER TO UPDATE THESE IN Pipeline_VCFtoTable.pl IF YOU CHANGE THEM!!  #######
+# REMEMBER TO UPDATE THESE IN Pipeline_VCFtoTable.pl/Pipeline_ReorderColumns.pl IF YOU CHANGE THEM!! #
 my $proto = "refGene,dbnsfp30a,clinvar_20160302,popfreq_max_20150413,exac03,exac03nontcga,avsnp147," .
             "esp6500siv2_ea,esp6500siv2_aa,esp6500siv2_all," .
             "1000g2015aug_all,1000g2015aug_afr,1000g2015aug_amr,1000g2015aug_eas,1000g2015aug_eur,1000g2015aug_sas";
@@ -183,11 +184,13 @@ my $cmd = "perl $SOFTWARE/annovar/table_annovar.pl $input_file $SOFTWARE/annovar
     -remove 
     -verbose";
 $cmd =~ s/\n//g;
+
 system $cmd;
 $? == 0 or die "table_annovar.pl script failed";
 
 
-#### run snpEff
+
+#### SnpEff Annotations
 $time = &getTime;
 say "\n== $time: Running snpEff (snpEff generates a chr error on nonstandard chr i.e. GL000209.1 which can be ignored)...";
 system "java -jar $SOFTWARE/snpEff/snpEff.jar -c $SOFTWARE/snpEff/snpEff.config GRCh37.75 $snpeff_infile | bgzip > $snpeff_outfile";
@@ -199,132 +202,106 @@ $? == 0 or die "snpEff.jar failed";
 
 
 
-### if the -o flag is set, start here
+####### Start the custom scripts for final annotation, including kidney genes, known variants, etc #####
+## if the -o flag is set, start here
 FINAL_ANN:
-
-$time = &getTime;
 
 $snpeff_outfile =~ /\.gz$/ or die "Input file $snpeff_outfile must be compressed with bgzip";
 
+
+#### Genotype Quality Control
+$time = &getTime;
 say "== $time: Filtering Individual genotypes by min Depth 4 and min GQ 10...";
-system "vcftools --gzvcf $snpeff_outfile --recode --recode-INFO-all --minDP 4 --minGQ 10 -c | bcftools view --exclude-uncalled | bgzip > $vcftools_filt";
+system "vcftools --gzvcf $snpeff_outfile --recode --recode-INFO-all --minDP 4 --minGQ 10 -c |
+          bcftools view --exclude-uncalled |
+          bgzip > $vcftools_filt";
 $? == 0 or die "Vcftools filtering failed.\n  Try runing vcftools without '-c' and/or vcf-validator to find out why.";
 
 
 
-#### Our perl scripts start here
-
-
-#### Basically extract all the values out of the INFO column and make them into columns in the 
-#### output table
+#### Pipeline_VCFtoTable.pl extract all the values out of the INFO column and 
+## makes make them into columns in the output table.  Also perform MAF filtering
+$time = &getTime;
 say "== $time: Converting VCF file to Table...";
 system "perl $PIPELINE/Pipeline_VCFtoTable.pl -m $MAF_Filter -f $vcftools_filt > $table_file";
 $? == 0 or die "Pipeline_VCFtoTable.pl script failed";
 
 
+
 # MAF filtering is now handled by Pipeline_VCFtoTable.pl based on Annovar's Max MAF
 # which is less powerful since a population can't be specified
-# say "== Creating annotation file of rare variants using MAF < $MAF_Filter...";
-# system "perl $PIPELINE/Pipeline_SelectRare.pl  $table_file $Population $MAF_Filter > $rare_file";
-#   $? == 0 or die "Pipeline_SelectRare.pl script failed";
+#say "== Creating annotation file of rare variants using MAF < $MAF_Filter...";
+#system "perl $PIPELINE/Pipeline_SelectRare.pl  $table_file $Population $MAF_Filter > $rare_file";
+#  $? == 0 or die "Pipeline_SelectRare.pl script failed";
 
 
 
 ### filter variants by Deleterious Functional Mutations
-say "== Filtering by functional variants...";
+$time = &getTime;
+say "== $time: Filtering by functional variants...";
 system "perl $PIPELINE/Pipeline_SelectFunctional.pl  $table_file  >  $function_file";
   $? == 0 or die "Pipeline_SelectFunctional.pl script failed";
+  
 
-say "== Creating gene annotations...";
+
+#### Create a summary of potential Compound Heterozygous variants
+$time = &getTime;
+say "== $time: Creating summary file of potential compound hets...";
+system "python $PIPELINE/Pipeline_CompHet.py < $function_file > $comphet_summary";
+  $? == 0 or die ""; 
+
+
+
+#### Add our custom Gene Based annotations including Emerge, Exac, etc.
+$time = &getTime;
+say "== $time: Creating gene based annotations...";
 system "perl $PIPELINE/Pipeline_AdditionalAnnotations.pl < $function_file > $disorder_file";
   $? == 0 or die "";
   
-# reorder columns
-say "== Reordering columns";
-# desired column order
-my @columns = qw(
-  CHROM  POS  ID  avsnp147  REF  ALT  QUAL  FILTER  FORMAT  GENOTYPES  
-  Sample_ID(GT)  Samples_With_Variant  AD_Pass  Missing 
-  MAF_max  MostDeleterious  CADD  polyPhen  PhastCons  GERPConsScore  Clinvar
-  
-  GENES  RVI  RVI%  HI  HI_imp  HI%  HI%_imp GDI  GDI_Phred  GDI_Damage
-    KidDisorder KidComment KidInheritence MouseGene MouseTerm OMIM_Disorder Emerge
-    LOFRare.al  TruncRare.al  FrameRare.al  SpliceRare.al  MisRare.al.Poly>0.9
-    LOF.al  Trunc.al  Frame.al  Splice.al 
-    Exp_LOF.var  N_LOF.var Z_LOF  pLI
-     
-  ==SeattleSeq  geneList  functionGVS  functionDBSNP  accession  aminoAcids  proteinPosition
-    cDNAPosition  chimpAllele  clinicalAssociation  distanceToSplice  keggPathway  tfbs
-    PPI  proteinAccession  granthamScore  microRNAs
-    
-  ==Annovar  GeneAnn FuncAnn Exonic DetailsAnn SIFT_score SIFT_pred Polyphen2_HDIV_score 
-    Polyphen2_HDIV_pred Polyphen2_HVAR_score Polyphen2_HVAR_pred LRT_score LRT_pred 
-    MutationTaster_score MutationTaster_pred MutationAssessor_score MutationAssessor_pred 
-    FATHMM_score FATHMM_pred PROVEAN_score PROVEAN_pred VEST3_score CADD_raw CADD_phred 
-    DANN_score fathmm-MKL_coding_score fathmm-MKL_coding_pred MetaSVM_score MetaSVM_pred MetaLR_score MetaLR_pred 
-    integrated_fitCons_score integrated_confidence_value GERP++_RS phyloP7way_vertebrate phyloP20way_mammalian 
-    phastCons7way_vertebrate phastCons20way_mammalian SiPhy_29way_logOdds
-  
-  ==snpEFF  GeneEFF  FuncEFF  DetailsEFF
-  
-  ==Freq All_ESP EUR_ESP AFR_ESP All_1KG Afr_1KG Amr_1KG Eas_1KG Eur_1KG Sas_1KG 
-    ALL_Exac AFR_Exac AMR_Exac EAS_Exac FIN_Exac NFE_Exac OTH_Exac SAS_Exac  
-    ALL_Exac_nontcga  AFR_Exac_nontcga  AMR_Exac_nontcga  EAS_Exac_nontcga  FIN_Exac_nontcga  NFE_Exac_nontcga  OTH_Exac_nontcga  SAS_Exac_nontcga
-);
-#SVM_PROBABILITY  SVM_POSTERIOR
 
-rename $disorder_file, "$disorder_file.unordered.tsv";
-open (IN, "$disorder_file.unordered.tsv");
-open (OUT, "> $disorder_file");
-
-my $line = <IN>;
-chomp $line;
-my @headers = split(/\t/, $line);
-my @indexes;
-for my $col (@columns) {
-  my $index = first_index{$col eq $_} @headers;
-  die "Can't reorder columns, couldn't find column header $col" if $index == -1;
-  push(@indexes, $index);
-}
-
-say OUT join("\t", @columns);
-
-while (<IN>) {
-  chomp;
-  my @fields = split("\t");
-  my @out;
-  push(@out, $fields[$_]) for (@indexes);  
-  say OUT join("\t", @out);  
-}
+#### reorder columns
+$time = &getTime;
+say "== $time: Reordering columns";
+rename $disorder_file, "$disorder_file.temp";
+system "perl $PIPELINE/Pipeline_ReorderColumns.pl < $disorder_file.temp > $disorder_file";
+  $? == 0 or die "Reordering columns failed.";
 
 
 
-   
-say "== Removing temporary files";
-unlink "$disorder_file.unordered.tsv";
+#### Cleanup
+say "== $time: Removing temporary files";
+unlink "$disorder_file.temp";
 unlink glob("$annovar_out*multianno*"), "$annovar_out.avinput"; 
 unlink glob("$filt_file*");  
 unlink glob("snpEff_*");
 unlink glob("out.log");
 unlink $vcftools_filt;
-
 unlink  $function_file; # output after functional filtering
-unlink $table_file;   # output table before func filtering
+#unlink $table_file;   # output table before func filtering
+
+
 
 $time = &getTime;
 say "== $time: Finished Pipeline.";
 
 
-###  Functions  ###
+
+
+
+
+
+################  Functions  ################
 
 sub usage {
-    say "Error: \n$_[0]\n\n
+    say "\nError: \n$_[0]\n\n
       Usage: ./Pipeline.pl -m 0.01 -f VCF_file  \n\n
       MAF_threshold is between 0 and 1 (ex. 0.01 for frequency 1 in 100), default is 0.01 \n\n";
     exit 1;
 }
-# removed from Usage message
+# Choosing a population has been removed for now since we use Annovar's Pop_max value.
+# removed from usage message:
 #Population options are: \n  T (Default - All Populations), E (Europian), A (African) and EA (Europian & African)
+
 
 sub getTime() {
   my $ellapsedSeconds = time() - $^T;
@@ -333,17 +310,16 @@ sub getTime() {
   return sprintf("%01dm%02ds", $min, $sec);
 }
 
-# This function was created when dealing with old, poorly formed Yale VCF files, 
-# but since now most of the VCF files we get are pretty clean, I only replace spaces in 
-# the info file because Seattle Seq chokes on them.
 
-# May, 2016: The version of GATK used by IGM uses alternate allele "<*:DEL>" (or just *) 
-# to indicate that a variant falls within an previous defined deletion. 
-# Since we normalize to one variant per line, this doesn't really give us any additional 
-# information.  So I remove these lines because they break Seattle Seq. 
-# More info on spanning deletions: https://www.broadinstitute.org/gatk/guide/article?id=6926
 
 sub cleanVCFLine( $ ){
+    # May, 2016: The version of GATK used by IGM uses alternate allele "<*:DEL>" (or just *) 
+    # to indicate that a variant falls within an previous defined deletion. 
+    # Since we normalize to one variant per line, this doesn't really give us any additional 
+    # information.  So I remove these lines because they break Seattle Seq. 
+    # More info on spanning deletions: https://www.broadinstitute.org/gatk/guide/article?id=6926
+
+    my $INFO_COLUMN_INDEX = 7;  #Info column is the 8th column in a VCF file
     my $line = ${$_[0]};
     
     #Lack of a description field for filters breaks vcftools
@@ -352,7 +328,7 @@ sub cleanVCFLine( $ ){
     }
     
     return $line if ($line =~ /^#/);
-    return "" if $line =~ /^hs37d5/;
+    return "" if $line =~ /^hs37d5/;  #some vcf files specify hs37d5 as a CHR which breaks bcftools
   
     chomp $line;
     
@@ -360,27 +336,31 @@ sub cleanVCFLine( $ ){
     #$line =~ s/\t$//;
 
     # - Change missing genotypes to dipoloid so Annovar doesn't give warnings  (.:.:. should be ./.:.:.)
+    # (this is done automatically by bcftools now)
     #$line =~ s|\t\.:|\t\./\.:|g;
 
-    # - since a value is required, give a missing value if it's not there
-#     $line =~ s/DESCRIPTION2;/DESCRIPTION2=\.;/g;
-#     $line =~ s/AACONSERV100;/AACONSERV100=\.;/g;
-#     $line =~ s/LISTSPECIES100;/LISTSPECIES100=\.;/g;
-#     $line =~ s/NOSPECIES100;/NOSPECIES100=\.;/g;
 
     my @fields = split("\t", $line);
 
+    # - Replace spaces in INFO field because SeaSeq will convert them to tabs, messing up the VCF file
+    $fields[$INFO_COLUMN_INDEX] =~ s/ /_/g;
+
+    # This function was created when dealing with old, poorly formed Yale VCF files, 
+    # but since now most of the VCF files we get are pretty clean, this is no
+    # longer necessary.
+    
+    # - since a value is required, give a missing value if it's not there
+    #$line =~ s/DESCRIPTION2;/DESCRIPTION2=\.;/g;
+    #$line =~ s/AACONSERV100;/AACONSERV100=\.;/g;
+    #$line =~ s/LISTSPECIES100;/LISTSPECIES100=\.;/g;
+    #$line =~ s/NOSPECIES100;/NOSPECIES100=\.;/g;
+    
     # - Yale data sometimes has a pseudo alternate allele that acts as a descriptor for an indel.
     #   It starts with ",I" or ",D" so look for this and remove this since it breaks bcftools normalization
     #$fields[4] =~ s/,[ID][^,\t]+//;
 
     # - If the alterante allele starts with I, replace I with the reference allele
     #$fields[4] =~ s/^I/$fields[3]/;
-
-    # - Replace spaces in INFO field because SeaSeq will convert them to tabs, messing up the VCF file
-    $fields[7] =~ s/ /_/g;
-    
-    
 
     return join("\t", @fields) . "\n";
 }

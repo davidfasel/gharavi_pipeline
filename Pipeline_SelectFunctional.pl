@@ -155,7 +155,10 @@ while(my $line = <FILE>) {
     $info_hash{"FG"}           //= "";
     $info_hash{"FD"}           //= "";
     $info_hash{"EFF"}          //= "";
-    @mutationsAnnovar = (split(/,|\\x3b/, $info_hash{"Func.refGene"}), split(/,|\\x3b/, $info_hash{"ExonicFunc.refGene"}));
+    @mutationsAnnovar = (
+      split(/,|\\x3b/, $info_hash{"Func.refGene"}), 
+      split(/,|\\x3b/, $info_hash{"ExonicFunc.refGene"})
+    );
 
     push(@mutationSeaSeq, split("[,/]", $info_hash{"FG"})) if $info_hash{"FG"};
     push(@mutationSeaSeq, split("[,/]", $info_hash{"FG"})) if $info_hash{"FD"};
