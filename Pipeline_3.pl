@@ -76,13 +76,12 @@ $raw_vcf_file  =~ s/\.vcf\.gz$//i;  # strip .vcf.gz extension
 
 my $rare = ($MAF_Filter == 0) ? "Novel" : "MAF$MAF_Filter";
 my $ss = $bSubmitToSeaSeq ? "SS_" : "";
+
 my $filt_file  =     "$raw_vcf_file.temp.vcf";
-my $ss_file  =       "$raw_vcf_file.SS.vcf.gz";
-my $annovar_out =    "$raw_vcf_file"."_annovar";
-my $snpeff_infile =  "$raw_vcf_file"."_annovar.hg19_multianno.vcf";
-my $snpeff_outfile = "$raw_vcf_file.$ss" . "Ann_Eff".".vcf.gz";
 my $vcftools_filt =  "$raw_vcf_file.temp2.vcf.gz";
-my $annovar_log =    "$raw_vcf_file.annovar.log";
+
+my $ss_file  =       "$raw_vcf_file.SS.vcf.gz";
+my $snpeff_outfile = "$raw_vcf_file.$ss" . "Ann_Eff.vcf.gz";
 my $table_file =     "$raw_vcf_file.$ss" . "Ann_Eff_" . $rare . ".tsv";
 my $function_file =  "$raw_vcf_file.$ss" . "Ann_Eff_" . $rare . "_func.tsv";
 my $disorder_file =  "$raw_vcf_file.$ss" . "Ann_Eff_" . $rare . "_func_disorders.tsv";
@@ -91,16 +90,17 @@ my $input_file =     $filt_file;
 
 if ($bFinalAnnotationOnly) {
     $snpeff_outfile = $vcf_file;
-    $table_file  =    "$raw_vcf_file" . "_$rare" . ".tsv";   
-    $function_file =  "$raw_vcf_file" . "_$rare" . "_func.tsv";
-    $disorder_file =  "$raw_vcf_file" . "_$rare" . "_func_disorders.tsv";
+    $table_file  =     "$raw_vcf_file" . "_$rare" . ".tsv";   
+    $function_file =   "$raw_vcf_file" . "_$rare" . "_func.tsv";
+    $disorder_file =   "$raw_vcf_file" . "_$rare" . "_func_disorders.tsv";
+    $comphet_summary = "$raw_vcf_file" . "_$rare" . "_CompHets.tsv";
     goto FINAL_ANN;
 }
 
 
 
 say "\n== Starting Pipeline ==";
-say "== Input VCF must be aligned to hg19/37. \n";
+say "== Input VCF must be aligned to hg19/37.";
 say "== VCF file: $vcf_file...\n";
 
 
@@ -116,7 +116,7 @@ if (not -e "$vcf_file.csi") {
 
 # Quality control: filters support MIN, MAX, AVG.
 $time = &getTime;
-say "== $time: Filtering by $QUALITY_FILTER...";
+say "== $time: Filtering by $QUALITY_FILTER, cleaning, then Normalizing";
 
 #open(FILE, "bcftools view --exclude-uncalled --include '$QUALITY_FILTER' --apply-filters '$PASS_FILTER' $vcf_file | ") or
 #    die "Couldn't filter $vcf_file";
@@ -176,7 +176,7 @@ my $proto = "refGene,dbnsfp30a,clinvar_20160302,popfreq_max_20150413,exac03,exac
 
 my $cmd = "perl $SOFTWARE/annovar/table_annovar.pl $input_file $SOFTWARE/annovar/humandb/ 
     -buildver hg19 
-    -out $annovar_out 
+    -out $raw_vcf_file.annovar
     -protocol $proto
     -operation g,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f
     -nastring . 
@@ -193,8 +193,8 @@ $? == 0 or die "table_annovar.pl script failed";
 #### SnpEff Annotations
 $time = &getTime;
 say "\n== $time: Running snpEff (snpEff generates a chr error on nonstandard chr i.e. GL000209.1 which can be ignored)...";
-system "java -jar $SOFTWARE/snpEff/snpEff.jar -c $SOFTWARE/snpEff/snpEff.config GRCh37.75 $snpeff_infile | bgzip > $snpeff_outfile";
-#system "java -jar $SOFTWARE/snpEff/snpEff.jar -c $SOFTWARE/snpEff/snpEff.config hg19 $snpeff_infile | bgzip > $snpeff_outfile";
+system "java -jar $SOFTWARE/snpEff/snpEff.jar -c $SOFTWARE/snpEff/snpEff.config GRCh37.75 $raw_vcf_file.annovar.hg19_multianno.vcf | 
+          bgzip > $snpeff_outfile";
 $? == 0 or die "snpEff.jar failed";
 
 
@@ -214,7 +214,7 @@ $time = &getTime;
 say "== $time: Filtering Individual genotypes by min Depth 4 and min GQ 10...";
 system "vcftools --gzvcf $snpeff_outfile --recode --recode-INFO-all --minDP 4 --minGQ 10 -c |
           bcftools view --exclude-uncalled |
-          bgzip > $vcftools_filt";
+          bgzip > $raw_vcf_file.temp.vcf.gz";
 $? == 0 or die "Vcftools filtering failed.\n  Try runing vcftools without '-c' and/or vcf-validator to find out why.";
 
 
@@ -223,7 +223,7 @@ $? == 0 or die "Vcftools filtering failed.\n  Try runing vcftools without '-c' a
 ## makes make them into columns in the output table.  Also perform MAF filtering
 $time = &getTime;
 say "== $time: Converting VCF file to Table...";
-system "perl $PIPELINE/Pipeline_VCFtoTable.pl -m $MAF_Filter -f $vcftools_filt > $table_file";
+system "perl $PIPELINE/Pipeline_VCFtoTable.pl -m $MAF_Filter -f $raw_vcf_file.temp.vcf.gz > $table_file";
 $? == 0 or die "Pipeline_VCFtoTable.pl script failed";
 
 
@@ -270,12 +270,15 @@ system "perl $PIPELINE/Pipeline_ReorderColumns.pl < $disorder_file.temp > $disor
 
 #### Cleanup
 say "== $time: Removing temporary files";
+unlink glob("$raw_vcf_file.annovar*");
+unlink glob("$raw_vcf_file.temp*"); 
+
 unlink "$disorder_file.temp";
-unlink glob("$annovar_out*multianno*"), "$annovar_out.avinput"; 
+
 unlink glob("$filt_file*");  
 unlink glob("snpEff_*");
 unlink glob("out.log");
-unlink $vcftools_filt;
+
 unlink  $function_file; # output after functional filtering
 #unlink $table_file;   # output table before func filtering
 
