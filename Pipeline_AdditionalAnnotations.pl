@@ -19,7 +19,7 @@ my $GDI          = "$PUBLIC_DB/GDI/GDI_full_10282015.txt";
 my $EXAC         = "$PUBLIC_DB/Exac/exac_LOF_alleles_by_gene.txt";
 my $CONSTRAINT   = "$PUBLIC_DB/Exac/forweb_cleaned_exac_r03_march16_z_data_pLI.txt";
 my $EMERGE       = "$PUBLIC_DB/GeneLists/EmergeGenes.txt";
-my $EMERGE_SNP   = "$PUBLIC_DB/GeneLists/EmergeSNPs.tsv";
+my $Emerge_SNP   = "$PUBLIC_DB/GeneLists/EmergeSNPs.tsv";
 my $CADD_MSC       = "$PUBLIC_DB/GeneLists/MSC_CADD_95.tsv";
 my $SIFT_MSC       = "$PUBLIC_DB/GeneLists/MSC_Sift_95.tsv";
 my $Poly_MSC       = "$PUBLIC_DB/GeneLists/MSC_PolyPhen_95.tsv";
@@ -46,9 +46,10 @@ for my $h (@header) {
 }
 
 
-
+# my (%kidney_disorder, %mouse_genes, %omim, %evsburden, %rvi, %hi, %hii, 
+#       %gdi, %exac, %constraint, %Emerge, %msc_sift, %msc_poly);
 my (%kidney_disorder, %mouse_genes, %omim, %evsburden, %rvi, %hi, %hii, 
-      %gdi, %exac, %constraint, %emerge, %msc_sift, %msc_poly);
+      %gdi, %exac, %constraint);
 
 # Hash Kidney disorders file by gene name
 # 1636	ACE	angiotensin I converting enzyme (peptidyl-dipeptidase A) 1	17q23	Renal tubular dysgenesis	(+)106180 		recessive
@@ -153,11 +154,11 @@ while(my $line = <FILE>){
 }
 close FILE;
 
-open(FILE, "$EMERGE") or die "Unable to open EMERGE file: $EMERGE";
+open(FILE, "$EMERGE") or die "Unable to open Emerge file: $EMERGE";
 while(my $line = <FILE>){
     $line =~ s/\r?\n//;
     my ($gene, $association) = split(/\t/, $line);
-    $emerge{$gene} = $association;
+    $hash_all{"Emerge"}{$gene} = $association;
 }
 close FILE;
 
@@ -166,7 +167,14 @@ while(my $line = <FILE>){
     chomp $line;
     my ($gene, $msc) = (split(/\t/, $line))[0,8];
     $hash_all{"CADD_MSC"}{$gene} = $msc;
-    $hash_all{"CADD_MSC"}{"output"} = [];
+}
+close FILE;
+
+open(FILE, "$Poly_MSC") or die "Unable to open PolyPhen_MSC file: $Poly_MSC";
+while(my $line = <FILE>){
+    chomp $line;
+    my ($gene, $msc) = (split(/\t/, $line))[0,8];
+    $hash_all{"PolyPhen_MSC"}{$gene} = $msc;
 }
 close FILE;
 
@@ -174,30 +182,21 @@ close FILE;
 # while(my $line = <FILE>){
 #     chomp $line;
 #     my ($gene, $msc) = (split(/\t/, $line))[0,8];
-#     $hash_all{"PolyPhen_MSC"}{$gene} = $msc;
-#     $hash_all{"PolyPhen_MSC"}{"output"} = [];
+#     $msc_poly{$gene} = $msc;
 # }
 # close FILE;
-
-open(FILE, "$Poly_MSC") or die "Unable to open PolyPhen_MSC file: $Poly_MSC";
-while(my $line = <FILE>){
-    chomp $line;
-    my ($gene, $msc) = (split(/\t/, $line))[0,8];
-    $msc_poly{$gene} = $msc;
-}
-close FILE;
 
 open(FILE, "$SIFT_MSC") or die "Unable to open SIFT_MSC file: $SIFT_MSC";
 while(my $line = <FILE>){
     chomp $line;
     my ($gene, $msc) = (split(/\t/, $line))[0,8];
-    $msc_sift{$gene} = $msc;
+    $hash_all{"SIFT_MSC"}{$gene} = $msc;
 }
 close FILE;
 
-# for my $key (keys %hash_all) {
-#     $hash_all{$key}{"output"} = [];
-# }
+for my $key (keys %hash_all) {
+    $hash_all{$key}{"output"} = [];
+}
 
 
 
@@ -235,18 +234,18 @@ while(my $line = <STDIN>) {
         @gdi_scores, @gdi_phreds, @gdi_preds,
         @kid_disorder, @kid_comment, @kid_inher, 
         @mouse_gene, @mouse_term,  
-        @omim_disorders,  @emerge_ass,
+        @omim_disorders,
         @exac_lof_r, @exac_trunc_r, @exac_frame_r, @exac_splice_r, @exac_mis,
         @exac_lof, @exac_trunc, @exac_frame, @exac_splice, 
-        @const_explof, @const_nlof, @const_lofz, @const_pli, 
-        @msc_cadds, @msc_polys, @msc_sifts);
+        @const_explof, @const_nlof, @const_lofz, @const_pli,
+    );
       
 #     my @all_arrays = (
 #         \@rvi_scores, \@rvi_percentiles, \@hi_scores, \@hii_scores, \@hi_percentiles, \@hii_percentiles, 
 #         \@gdi_scores, \@gdi_phreds, \@gdi_preds,
 #         \@kid_disorder, \@kid_comment, \@kid_inher, 
 #         \@mouse_gene, \@mouse_term,  
-#         \@omim_disorders, \@emerge_ass,
+#         \@omim_disorders, \@Emerge_ass,
 #         \@exac_lof_r, \@exac_trunc_r, \@exac_frame_r, \@exac_splice_r, \@exac_mis,
 #         \@exac_lof, \@exac_trunc, \@exac_frame, \@exac_splice, 
 #         \@const_explof, \@const_nlof, \@const_lofz, \@const_pli, 
@@ -258,14 +257,12 @@ while(my $line = <STDIN>) {
         \@gdi_scores, \@gdi_phreds, \@gdi_preds,
         \@kid_disorder, \@kid_comment, \@kid_inher, 
         \@mouse_gene, \@mouse_term,  
-        \@omim_disorders, \@emerge_ass,
+        \@omim_disorders, $hash_all{"Emerge"}{"output"},
         \@exac_lof_r, \@exac_trunc_r, \@exac_frame_r, \@exac_splice_r, \@exac_mis,
         \@exac_lof, \@exac_trunc, \@exac_frame, \@exac_splice, 
         \@const_explof, \@const_nlof, \@const_lofz, \@const_pli, 
-        $hash_all{"CADD_MSC"}{"output"}, \@msc_polys, \@msc_sifts
-    );
-    
-#    $hash_all{"Poly_MSC"}{"output"}
+        $hash_all{"CADD_MSC"}{"output"}, $hash_all{"PolyPhen_MSC"}{"output"}, $hash_all{"SIFT_MSC"}{"output"}
+    );  
     
     for my $gene (@genes){
         if(exists $kidney_disorder{$gene}){
@@ -316,20 +313,17 @@ while(my $line = <STDIN>) {
             push (@const_lofz, $constraint{$gene}[2]);
             push (@const_pli, $constraint{$gene}[3]);
         } 
-        if(exists $emerge{$gene}) {
-            push (@emerge_ass, $emerge{$gene});
-        } 
+        if(exists $hash_all{"Emerge"}{$gene}) {
+            push (@{$hash_all{"Emerge"}{"output"}}, $hash_all{"Emerge"}{$gene});
+        }
         if(exists $hash_all{"CADD_MSC"}{$gene}) {
             push (@{$hash_all{"CADD_MSC"}{"output"}}, $hash_all{"CADD_MSC"}{$gene});
         }
-#         if(exists $hash_all{"Poly_MSC"}{$gene}) {
-#             push (@{$hash_all{"Poly_MSC"}{"output"}}, $hash_all{"Poly_MSC"}{$gene});
-#         }
-       if(exists $msc_poly{$gene}) {
-            push (@msc_polys, $msc_poly{$gene});
+        if(exists $hash_all{"PolyPhen_MSC"}{$gene}) {
+            push (@{$hash_all{"PolyPhen_MSC"}{"output"}}, $hash_all{"PolyPhen_MSC"}{$gene});
         }
-        if(exists $msc_sift{$gene}) {
-            push (@msc_sifts, $msc_sift{$gene});
+        if(exists $hash_all{"SIFT_MSC"}{$gene}) {
+            push (@{$hash_all{"SIFT_MSC"}{"output"}}, $hash_all{"SIFT_MSC"}{$gene});
         }
     }
     #remove any that are just whitespace
