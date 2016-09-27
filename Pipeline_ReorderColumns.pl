@@ -16,7 +16,7 @@ my @columns = qw(
   CLINSIG  CLNDBN
   
   GENES  RVI  RVI%  HI  HI_imp  HI%  HI%_imp GDI  GDI_Phred  GDI_Damage
-    KidDisorder KidComment KidInheritence MouseGene MouseTerm OMIM_Disorder Emerge
+    KidDisorder KidComment KidInheritence MouseGene MouseTerm OMIM_Disorder Emerge EmergeSNP
     LOFRare.al  TruncRare.al  FrameRare.al  SpliceRare.al  MisRare.al.Poly>0.9
     LOF.al  Trunc.al  Frame.al  Splice.al 
     Exp_LOF.var  N_LOF.var Z_LOF  pLI

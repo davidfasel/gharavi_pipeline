@@ -255,7 +255,7 @@ system "python $PIPELINE/Pipeline_CompHet.py < $function_file > $comphet_summary
 #### Add our custom Gene Based annotations including Emerge, Exac, etc.
 $time = &getTime;
 say "== $time: Creating gene based annotations...";
-system "perl $PIPELINE/Pipeline_AdditionalAnnotations.pl < $function_file > $disorder_file";
+system "perl $PIPELINE/Pipeline_AdditionalAnnotations.pl.new < $function_file > $disorder_file";
   $? == 0 or die "";
   
 
