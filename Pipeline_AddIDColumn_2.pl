@@ -42,28 +42,42 @@ my $header_line = <FILE>;
 my @fields = split(/\t/, $header_line);
 #my $id_col = first_index{/$IDS_HEADER/} @fields;
 my $id_col = first { $fields[$_] =~ /$IDS_HEADER/ } 0..$#fields;
+if (not defined $id_col) {
+    print STDERR "Error: Couldn't find column named '$IDS_HEADER' to match with mapping file.\n\n";
+    exit;
+} 
+
 splice(@fields, $id_col, 0, $INSERTED_HEADER);
 print join("\t", @fields);
 
 # output the rest of the file inserting the new sample IDs column
 while(<FILE>) {
   my @fields = split(/\t/);
-  my $ids = $fields[$id_col];
-  
-  for my $key (keys %samples) {
-    #todo: be more precise about an exact match on sample ID, in case some sample IDs are contained within
-    # longer IDs (ex. Samp1 and Samp10).  So use word boundaries to create an exact match
-    $ids =~ s/\b$key\b/$samples{$key}/i;
+  my $s_ids = $fields[$id_col];
+  my @ids = split(/,/, $s_ids);
+  #@ids = map {s/\(.+//; $_} @ids;
+ 
+  my @new_ids;  
+  for my $id (@ids) {
+    $id =~ s/(\(.+)//;
+    my $geno = $1 || "";
+    push(@new_ids, $samples{$id} . $geno);
   }
   
-  splice(@fields, $id_col, 0, $ids);
+  my $new_ids_string = join(",", @new_ids). ",";
+  
+  splice(@fields, $id_col, 0, $new_ids_string);
   print join("\t", @fields);
+
 }
 
 
 
 
 ## usage: 
-# Pipeline_AddIDColumn.pl SampleList.tsv AnnotationFile.tsv > AnnotationFile_withNewIDs.tsv
-# Input of SampleList.tsv should be the sample id in the annotation file
-# followed by the sample ID to be added to the annotation file
+# Pipeline_AddIDColumn.pl -m MappingList.tsv -f File.tsv -h Sample_ID -i New_ID \
+#    > AnnotationFile_withNewIDs.tsv
+# Input of MappingList.tsv should be the ID in the annotation file
+# followed by the new ID to be added to the annotation file
+# -h specifies the column name to be matched  (defaults to 
+# -i specifies what to name the new column with the new IDs (defaults to LabID)

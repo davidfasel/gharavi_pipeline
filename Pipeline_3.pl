@@ -3,7 +3,6 @@ use warnings;
 use strict;
 use feature 'say';
 use Getopt::Long;  #process command line arguments
-use Cwd 'abs_path';
 use List::MoreUtils qw(first_index);
 
 
@@ -53,10 +52,10 @@ GetOptions (
 
 # Validate
 ( -e $vcf_file) or &usage("File not found: $vcf_file");
-$MAF_Filter //= 0.01; # assign if undefined, 0 is ok (Novel variants)
+$MAF_Filter //= 1; # assign if undefined, 0 is ok (Novel variants)
 $Population ||= "T";
 ($Population =~ /^(e|a|t|ea|ae)$/i)  or &usage("Invalid population designation.");
-($MAF_Filter >= 0 && $MAF_Filter < 1) or &usage("MAF threshold must be between 0 and 1.");
+($MAF_Filter >= 0 && $MAF_Filter <= 1) or &usage("MAF threshold must be between 0 and 1.");
 
 
 
@@ -74,7 +73,10 @@ if ($vcf_file !~ /\.gz$/i) {
 }
 $raw_vcf_file  =~ s/\.vcf\.gz$//i;  # strip .vcf.gz extension
 
-my $rare = ($MAF_Filter == 0) ? "Novel" : "MAF$MAF_Filter";
+my $rare = "MAF$MAF_Filter";
+$rare = "Novel" if ($MAF_Filter == 0);
+$rare = "NoMAF"  if ($MAF_Filter == 1);
+
 my $ss = $bSubmitToSeaSeq ? "SS_" : "";
 
 my $filt_file  =     "$raw_vcf_file.temp.vcf";
@@ -211,8 +213,10 @@ $snpeff_outfile =~ /\.gz$/ or die "Input file $snpeff_outfile must be compressed
 
 #### Genotype Quality Control
 $time = &getTime;
-say "== $time: Filtering Individual genotypes by min Depth 4 and min GQ 10...";
-system "vcftools --gzvcf $snpeff_outfile --recode --recode-INFO-all --minDP 4 --minGQ 10 -c |
+say "== $time: Filtering Individual genotypes by min Depth 4 (min GQ 10 is now removed " .
+    "because Baylor seq does not have GQ so all variants were being filtered out)...";
+#system "vcftools --gzvcf $snpeff_outfile --recode --recode-INFO-all --minDP 4 --minGQ 10 -c |
+system "vcftools --gzvcf $snpeff_outfile --recode --recode-INFO-all --minDP 4 -c |
           bcftools view --exclude-uncalled |
           bgzip > $raw_vcf_file.temp.vcf.gz";
 $? == 0 or die "Vcftools filtering failed.\n  Try runing vcftools without '-c' and/or vcf-validator to find out why.";
@@ -255,18 +259,22 @@ system "python $PIPELINE/Pipeline_CompHet.py < $function_file > $comphet_summary
 #### Add our custom Gene Based annotations including Emerge, Exac, etc.
 $time = &getTime;
 say "== $time: Creating gene based annotations...";
-system "perl $PIPELINE/Pipeline_AdditionalAnnotations.pl < $function_file > $disorder_file";
+system "perl $PIPELINE/Pipeline_AdditionalAnnotations.pl < $function_file > $disorder_file.temp";
   $? == 0 or die "";
   
 
 #### reorder columns
 $time = &getTime;
 say "== $time: Reordering columns";
-rename $disorder_file, "$disorder_file.temp";
 system "perl $PIPELINE/Pipeline_ReorderColumns.pl < $disorder_file.temp > $disorder_file";
   $? == 0 or die "Reordering columns failed.";
 
 
+#### Split output file into smaller files so they can be opened in Excel
+$time = &getTime;
+say "== $time: Splitting main annotation file into smaller files";
+system "perl $PIPELINE/Pipeline_SplitFile.pl $disorder_file";
+  $? == 0 or die "Splitting file failed.";
 
 #### Cleanup
 say "== $time: Removing temporary files";
@@ -279,13 +287,24 @@ unlink glob("$filt_file*");
 unlink glob("snpEff_*");
 unlink glob("out.log");
 
-unlink  $function_file; # output after functional filtering
-#unlink $table_file;   # output table before func filtering
+# Delete file filtered by functional variants.
+# Not needed because we immediately generate this file again, but with the 
+# disorders columns added (kidney, mouse, etc.)
+# however, I do remove the INFO column in the disorders file, to make it smaller,
+# so if you need the info column, don't delete this file.
+unlink  $function_file; 
+
+# delete unfiltered VCF -> table file 
+# I no longer delete this because sometimes we want to see a file that is not filtered
+# by variant type.
+# Tip: If you need to view this file, you can delete the INFO column in this file 
+# to make it a lot smaller.
+#unlink $table_file;   
 
 
 
 $time = &getTime;
-say "== $time: Finished Pipeline.";
+say "== $time: Finished Pipeline..";
 
 
 

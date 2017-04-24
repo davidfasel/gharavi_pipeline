@@ -9,7 +9,7 @@ use Scalar::Util qw(looks_like_number);
 my $MISSING = ".";  #define what should be shown if field is missing (can be empty string if desired)
 my $ALLELIC_DEPTH_RATIO = 0.3;
 
-my $MAF_filter = 0.01;
+my $MAF_filter = 1;
 my $vcf_file;
 GetOptions (
     'file|f=s' => \$vcf_file,
