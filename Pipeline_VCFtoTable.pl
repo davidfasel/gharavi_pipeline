@@ -57,7 +57,7 @@ my @header = qw(
     FATHMM_score  FATHMM_pred
     PROVEAN_score  PROVEAN_pred
     VEST3_score
-    CADD_raw  CADD_phred
+    CADD_raw  CADD_ann
     DANN_score
     fathmm-MKL_coding_score  fathmm-MKL_coding_pred
     MetaSVM_score  MetaSVM_pred  MetaLR_score  MetaLR_pred

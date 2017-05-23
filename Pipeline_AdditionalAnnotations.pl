@@ -9,7 +9,7 @@ my $GENE_HEADER = "GENES";
 my $DATA_NA = ".";
 my $PUBLIC_DB = "/media/Data/public_databases";
 
-my $KIDNEY_GENES = "$PUBLIC_DB/GeneLists/KidneyGenes6.txt";
+my $KIDNEY_GENES = "$PUBLIC_DB/GeneLists/KidneyGenes_20170322.txt";
 my $MOUSE_GENES  = "$PUBLIC_DB/GeneLists/CAKUT_genes-mouse.txt";
 my $OMIM         = "$PUBLIC_DB/GeneLists/OMIM_genemap.txt";
 my $HI           = "$PUBLIC_DB/HI/HI_prediction.bed";
@@ -54,12 +54,12 @@ my (%evsburden, %rvi);
 open(FILE, $KIDNEY_GENES) or die "Unable to open Kidney File: $KIDNEY_GENES";
 while(my $line = <FILE>){
     chomp($line);
-    my @kidney  = split(/\t/, $line);
+    my @kidney  = split(/\t/, $line, -1);
     my $gene = $kidney[1];
     $gene =~ s/\s+//g;
-    $hash_all{"KidDisorder"}{$gene} = $kidney[4];
-    $hash_all{"KidInheritence"}{$gene} = $kidney[7];
-    $hash_all{"KidComment"}{$gene}  = $kidney[8];
+    $hash_all{"KidDisorder"}{$gene} = $kidney[5];
+    $hash_all{"KidInheritence"}{$gene} = $kidney[3];
+    $hash_all{"KidComment"}{$gene}  = $kidney[6];
 }
 close FILE;
 
@@ -271,8 +271,6 @@ while(my $line = <STDIN>) {
     for my $key (keys %hash_all) {
         $hash_all{$key}{"output"} = [];
     }
-    
-    
     
 }
 close FILE;

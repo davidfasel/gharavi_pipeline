@@ -9,14 +9,16 @@ use Getopt::Long;  #process command line arguments
 my @columns = qw(
   CHROM  POS  ID  avsnp147  REF  ALT  QUAL  FILTER  FORMAT  GENOTYPES  
   Sample_ID(GT)  Samples_With_Variant  Hets  Homs  AD_Pass  Missing 
+  DetailsAnn
   MAF_max  MostDeleterious    
-  CADD_phred  CADD_MSC  
+  CADD_ann  CADD_MSC  
   Polyphen2_HVAR_score PolyPhen_MSC  
   SIFT_score  SIFT_MSC
   CLINSIG  CLNDBN
   
-  GENES  RVI  RVI%  HI  HI_imp  HI%  HI%_imp GDI  GDI_Phred  GDI_Damage
-    KidDisorder KidComment KidInheritence MouseGene MouseTerm OMIM_Disorder Emerge EmergeSNP
+  GENES  
+    KidDisorder KidComment KidInheritence MouseGene MouseTerm OMIM_Disorder Emerge EmergeSNP  
+    RVI  RVI%  HI  HI_imp  HI%  HI%_imp GDI  GDI_Phred  GDI_Damage   
     LOFRare.al  TruncRare.al  FrameRare.al  SpliceRare.al  MisRare.al.Poly>0.9
     LOF.al  Trunc.al  Frame.al  Splice.al 
     Exp_LOF.var  N_LOF.var Z_LOF  pLI
@@ -24,7 +26,7 @@ my @columns = qw(
   ==Annovar  GeneAnn FuncAnn Exonic DetailsAnn  SIFT_score  SIFT_pred Polyphen2_HDIV_score 
     Polyphen2_HDIV_pred Polyphen2_HVAR_score Polyphen2_HVAR_pred LRT_score LRT_pred 
     MutationTaster_score MutationTaster_pred MutationAssessor_score MutationAssessor_pred 
-    FATHMM_score FATHMM_pred PROVEAN_score PROVEAN_pred VEST3_score CADD_raw CADD_phred 
+    FATHMM_score FATHMM_pred PROVEAN_score PROVEAN_pred VEST3_score CADD_raw CADD_ann 
     DANN_score fathmm-MKL_coding_score fathmm-MKL_coding_pred MetaSVM_score MetaSVM_pred MetaLR_score MetaLR_pred 
     integrated_fitCons_score integrated_confidence_value GERP++_RS phyloP7way_vertebrate phyloP20way_mammalian 
     phastCons7way_vertebrate phastCons20way_mammalian SiPhy_29way_logOdds

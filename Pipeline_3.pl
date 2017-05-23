@@ -12,9 +12,13 @@ my $SOFTWARE  = "/media/Data/software";
 my $PIPELINE  = "/media/Data/pipeline/v3";     
 my $PUBLIC_DB = "/media/Data/public_databases";
 
+# we don't do any filtering at this stage anymore.  Filtering is done after the VCFs
+# are created, so that we can change filtering parameters without rerunning the 
+# entire pipeline, including submitting to Seattle Seq
 #may also want to remove all HOMO REF calls using: "MIN(AC)>=1 && (QUAL>=50  || (QUAL>=30 && MAX(FMT/DP)>=8))"
-my $QUALITY_FILTER = "QUAL>=50  || (QUAL>=30 && MAX(FMT/DP)>=8)"; 
+#my $QUALITY_FILTER = "QUAL>=50  || (QUAL>=30 && MAX(FMT/DP)>=8)"; 
 #my $QUALITY_FILTER = "QUAL>=50  ";
+my $QUALITY_FILTER = "";
 #my $PASS_FILTER = "--apply-filters '.,PASS,FILTER'";  # for targeted seq we allow FILTER
 my $PASS_FILTER = "--apply-filters ''";  # dont filter for now until we better understand VQS Lod filters.  
 
@@ -118,7 +122,7 @@ if (not -e "$vcf_file.csi") {
 
 # Quality control: filters support MIN, MAX, AVG.
 $time = &getTime;
-say "== $time: Filtering by $QUALITY_FILTER, cleaning, then Normalizing";
+say "== $time: Cleaning and Normalizing (filtering no longer happens before VCF files are annotated)";
 
 #open(FILE, "bcftools view --exclude-uncalled --include '$QUALITY_FILTER' --apply-filters '$PASS_FILTER' $vcf_file | ") or
 #    die "Couldn't filter $vcf_file";
@@ -172,7 +176,7 @@ $time = &getTime;
 say "== $time: Running Annovar... ";
 
 # REMEMBER TO UPDATE THESE IN Pipeline_VCFtoTable.pl/Pipeline_ReorderColumns.pl IF YOU CHANGE THEM!! #
-my $proto = "refGene,dbnsfp30a,clinvar_20160302,popfreq_max_20150413,exac03,exac03nontcga,avsnp147," .
+my $proto = "refGene,dbnsfp33a,clinvar_20170130,popfreq_max_20150413,exac03,exac03nontcga,avsnp147," .
             "esp6500siv2_ea,esp6500siv2_aa,esp6500siv2_all," .
             "1000g2015aug_all,1000g2015aug_afr,1000g2015aug_amr,1000g2015aug_eas,1000g2015aug_eur,1000g2015aug_sas";
 
