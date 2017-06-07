@@ -176,7 +176,10 @@ $time = &getTime;
 say "== $time: Running Annovar... ";
 
 # REMEMBER TO UPDATE THESE IN Pipeline_VCFtoTable.pl/Pipeline_ReorderColumns.pl IF YOU CHANGE THEM!! #
-my $proto = "refGene,dbnsfp33a,clinvar_20170130,popfreq_max_20150413,exac03,exac03nontcga,avsnp147," .
+my $proto = "refGene,dbnsfp33a,clinvar_20170130," .
+            "popfreq_max_20150413," .
+            "avsnp147," .
+            "gnomad_exome," .
             "esp6500siv2_ea,esp6500siv2_aa,esp6500siv2_all," .
             "1000g2015aug_all,1000g2015aug_afr,1000g2015aug_amr,1000g2015aug_eas,1000g2015aug_eur,1000g2015aug_sas";
 
@@ -184,7 +187,7 @@ my $cmd = "perl $SOFTWARE/annovar/table_annovar.pl $input_file $SOFTWARE/annovar
     -buildver hg19 
     -out $raw_vcf_file.annovar
     -protocol $proto
-    -operation g,f,f,f,f,f,f,f,f,f,f,f,f,f,f,f
+    -operation g,f,f,f,f,f,f,f,f,f,f,f,f,f,f
     -nastring . 
     -vcfinput 
     -remove 

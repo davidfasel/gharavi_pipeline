@@ -71,10 +71,8 @@ my @header = qw(
     
     ==Freq  All_ESP  EUR_ESP  AFR_ESP
     All_1KG  Afr_1KG  Amr_1KG  Eas_1KG  Eur_1KG  Sas_1KG
-    ALL_Exac  AFR_Exac  AMR_Exac  EAS_Exac  FIN_Exac  NFE_Exac  OTH_Exac  SAS_Exac 
-    ALL_Exac_nontcga  AFR_Exac_nontcga  AMR_Exac_nontcga  EAS_Exac_nontcga  FIN_Exac_nontcga  NFE_Exac_nontcga  OTH_Exac_nontcga  SAS_Exac_nontcga
-    
-   
+    gnomAD_ALL  gnomAD_AFR  gnomAD_AMR  gnomAD_ASJ gnomAD_EAS 
+    gnomAD_FIN  gnomAD_NFE  gnomAD_OTH  gnomAD_SAS
 );
                   
 #    ==dbSNP  141_ID  141_REF  141_ALT  141_AF  AlleleStatus  
@@ -321,22 +319,15 @@ while(my $line = <FILE>)
       1000g2015aug_eas
       1000g2015aug_eur
       1000g2015aug_sas
-      ExAC_ALL
-      ExAC_AFR
-      ExAC_AMR
-      ExAC_EAS
-      ExAC_FIN
-      ExAC_NFE
-      ExAC_OTH
-      ExAC_SAS
-      ExAC_nontcga_ALL
-      ExAC_nontcga_AFR
-      ExAC_nontcga_AMR
-      ExAC_nontcga_EAS
-      ExAC_nontcga_FIN
-      ExAC_nontcga_NFE
-      ExAC_nontcga_OTH
-      ExAC_nontcga_SAS
+      gnomAD_exome_ALL
+      gnomAD_exome_AFR
+      gnomAD_exome_AMR
+      gnomAD_exome_ASJ
+      gnomAD_exome_EAS
+      gnomAD_exome_FIN
+      gnomAD_exome_NFE
+      gnomAD_exome_OTH
+      gnomAD_exome_SAS
 
     );
     for my $item (@freqFields) {

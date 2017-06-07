@@ -23,7 +23,7 @@ my $EMERGE_SNP   = "$PUBLIC_DB/GeneLists/EmergeSNPs.tsv";
 my $CADD_MSC       = "$PUBLIC_DB/GeneLists/MSC_CADD_95.tsv";
 my $SIFT_MSC       = "$PUBLIC_DB/GeneLists/MSC_Sift_95.tsv";
 my $Poly_MSC       = "$PUBLIC_DB/GeneLists/MSC_PolyPhen_95.tsv";
-
+my $PHARMO         = "$PUBLIC_DB/GeneLists/pharmocogenetics.tsv";
 
 
 # IMPORTANT: update these header names in main Pipeline
@@ -38,13 +38,14 @@ my @header = qw(
   Exp_LOF.var  N_LOF.var Z_LOF  pLI
   CADD_MSC  PolyPhen_MSC  SIFT_MSC
   Emerge  EmergeSNP
+  Pharmo
 );
 
 #
 
-my %hash_all;
+my %Annotations;
 for my $h (@header) {
-    $hash_all{$h} = {};
+    $Annotations{$h} = {};
 }
 
 my (%evsburden, %rvi);
@@ -57,9 +58,9 @@ while(my $line = <FILE>){
     my @kidney  = split(/\t/, $line, -1);
     my $gene = $kidney[1];
     $gene =~ s/\s+//g;
-    $hash_all{"KidDisorder"}{$gene} = $kidney[5];
-    $hash_all{"KidInheritence"}{$gene} = $kidney[3];
-    $hash_all{"KidComment"}{$gene}  = $kidney[6];
+    $Annotations{"KidDisorder"}{$gene} = $kidney[5];
+    $Annotations{"KidInheritence"}{$gene} = $kidney[3];
+    $Annotations{"KidComment"}{$gene}  = $kidney[6];
 }
 close FILE;
 
@@ -72,8 +73,8 @@ while(my $line = <FILE>){
     my @fields = split(/\t/, $line);
     my $gene = $fields[0];
     $gene =~ s/\s+//g;
-    $hash_all{"MouseGene"}{$gene} = $fields[3];
-    $hash_all{"MouseTerm"}{$gene} = $fields[7];
+    $Annotations{"MouseGene"}{$gene} = $fields[3];
+    $Annotations{"MouseTerm"}{$gene} = $fields[7];
 }
 close FILE;
 
@@ -90,7 +91,7 @@ while(my $line = <FILE>){
     for my $gene (@gene_list){
         $disorder1 =~ s/^\s+$//g;
         my @out = grep {/\S+/} ($disorder1, $disorder2, $disorder3, $comment);  # get fields that aren't just whitespace
-        $hash_all{"OMIM_Disorder"}{$gene} = join("|", @out) if $disorder1;
+        $Annotations{"OMIM_Disorder"}{$gene} = join("|", @out) if $disorder1;
     }
 }
 close FILE;
@@ -100,8 +101,8 @@ while(my $line = <FILE>){
     next if $. == 1;
     $line =~ s/\r?\n//;
     my ($gene, $rvi_score, $rvi_percent) = split(/\t/, $line);
-    $hash_all{"RVI"}{$gene} = $rvi_score;
-    $hash_all{"RVI%"}{$gene} = $rvi_percent;
+    $Annotations{"RVI"}{$gene} = $rvi_score;
+    $Annotations{"RVI%"}{$gene} = $rvi_percent;
 }
 close FILE;
 
@@ -112,8 +113,8 @@ while(my $line = <FILE>){
     next if $. == 1;  #skip track name line
     chomp $line;
     my ($gene, $hi_score, $hi_percent) = split(/\|/, (split /\t/, $line)[3]);
-    $hash_all{"HI"}{$gene} = $hi_score;
-    $hash_all{"HI%"}{$gene} = $hi_percent;
+    $Annotations{"HI"}{$gene} = $hi_score;
+    $Annotations{"HI%"}{$gene} = $hi_percent;
 }
 close FILE;
 open(FILE, "$HI_IMP") or die "Unable to open HI_imp file: $HI_IMP";
@@ -121,8 +122,8 @@ while(my $line = <FILE>){
     next if $. == 1;  #skip track name line
     $line =~ s/\r?\n//;
     my ($gene, $hii_score, $hii_percent) = split(/\|/, (split /\t/, $line)[3]);
-    $hash_all{"HI_imp"}{$gene} = $hii_score;
-    $hash_all{"HI%_imp"}{$gene} = $hii_percent;
+    $Annotations{"HI_imp"}{$gene} = $hii_score;
+    $Annotations{"HI%_imp"}{$gene} = $hii_percent;
 }
 close FILE;
 
@@ -134,9 +135,9 @@ while(my $line = <FILE>){
     next if $. == 1;  #skip header
     $line =~ s/\r?\n//;
     my ($gene, $gdi_score, $gdi_phred, $gdi_pred) = split(/\t/, $line);
-    $hash_all{"GDI"}{$gene}       = $gdi_score;
-    $hash_all{"GDI_Phred"}{$gene} = $gdi_phred;
-    $hash_all{"GDI_Damage"}{$gene} = $gdi_pred;
+    $Annotations{"GDI"}{$gene}       = $gdi_score;
+    $Annotations{"GDI_Phred"}{$gene} = $gdi_phred;
+    $Annotations{"GDI_Damage"}{$gene} = $gdi_pred;
 }
 close FILE;
 
@@ -147,15 +148,15 @@ while(my $line = <FILE>){
     next if $. == 1;  #skip header
     $line =~ s/\r?\n//;
     my ($gene, $lof_r, $trunc_r, $frame_r, $splice_r, $mis, $lof, $trunc, $frame, $splice) = split(/\t/, $line);
-    $hash_all{"LOFRare.al"}{$gene}    = $lof_r;
-    $hash_all{"TruncRare.al"}{$gene}  = $trunc_r;
-    $hash_all{"FrameRare.al"}{$gene}  = $frame_r;
-    $hash_all{"SpliceRare.al"}{$gene} = $splice_r;
-    $hash_all{"MisRare.al.Poly>0.9"}{$gene} = $mis;
-    $hash_all{"LOF.al"}{$gene}        = $lof;
-    $hash_all{"Trunc.al"}{$gene}      = $trunc;
-    $hash_all{"Frame.al"}{$gene}      = $frame;
-    $hash_all{"Splice.al"}{$gene}     = $splice;
+    $Annotations{"LOFRare.al"}{$gene}    = $lof_r;
+    $Annotations{"TruncRare.al"}{$gene}  = $trunc_r;
+    $Annotations{"FrameRare.al"}{$gene}  = $frame_r;
+    $Annotations{"SpliceRare.al"}{$gene} = $splice_r;
+    $Annotations{"MisRare.al.Poly>0.9"}{$gene} = $mis;
+    $Annotations{"LOF.al"}{$gene}        = $lof;
+    $Annotations{"Trunc.al"}{$gene}      = $trunc;
+    $Annotations{"Frame.al"}{$gene}      = $frame;
+    $Annotations{"Splice.al"}{$gene}     = $splice;
 }
 close FILE;
 
@@ -168,10 +169,10 @@ while(my $line = <FILE>){
     $line =~ s/\r?\n//;
     my @fields = split(/\t/, $line);
     my ($gene, $exp_lof, $n_lof, $lof_z, $pli) = @fields[1, 15, 12, 18, 19];
-    $hash_all{"Exp_LOF.var"}{$gene}   = $exp_lof;
-    $hash_all{"N_LOF.var"}{$gene}     = $n_lof;
-    $hash_all{"Z_LOF"}{$gene}         = $lof_z;
-    $hash_all{"pLI"}{$gene}           = $pli;
+    $Annotations{"Exp_LOF.var"}{$gene}   = $exp_lof;
+    $Annotations{"N_LOF.var"}{$gene}     = $n_lof;
+    $Annotations{"Z_LOF"}{$gene}         = $lof_z;
+    $Annotations{"pLI"}{$gene}           = $pli;
 }
 close FILE;
 
@@ -179,7 +180,7 @@ open(FILE, "$EMERGE") or die "Unable to open Emerge file: $EMERGE";
 while(my $line = <FILE>){
     $line =~ s/\r?\n//;
     my ($gene, $association) = split(/\t/, $line);
-    $hash_all{"Emerge"}{$gene} = $association;
+    $Annotations{"Emerge"}{$gene} = $association;
 }
 close FILE;
 
@@ -187,7 +188,7 @@ open(FILE, "$EMERGE_SNP") or die "Unable to open Emerge file: $EMERGE_SNP";
 while(my $line = <FILE>){
     chomp $line;
     my ($rsID, $location, $source) = split(/\t/, $line);
-    $hash_all{"EmergeSNP"}{$location} = "$rsID,$source";
+    $Annotations{"EmergeSNP"}{$location} = "$rsID,$source";
 }
 close FILE;
 
@@ -195,7 +196,7 @@ open(FILE, "$CADD_MSC") or die "Unable to open CADD_MSC file: $CADD_MSC";
 while(my $line = <FILE>){
     chomp $line;
     my ($gene, $msc) = (split(/\t/, $line))[0,8];
-    $hash_all{"CADD_MSC"}{$gene} = $msc;
+    $Annotations{"CADD_MSC"}{$gene} = $msc;
 }
 close FILE;
 
@@ -203,7 +204,7 @@ open(FILE, "$Poly_MSC") or die "Unable to open PolyPhen_MSC file: $Poly_MSC";
 while(my $line = <FILE>){
     chomp $line;
     my ($gene, $msc) = (split(/\t/, $line))[0,8];
-    $hash_all{"PolyPhen_MSC"}{$gene} = $msc;
+    $Annotations{"PolyPhen_MSC"}{$gene} = $msc;
 }
 close FILE;
 
@@ -211,12 +212,28 @@ open(FILE, "$SIFT_MSC") or die "Unable to open SIFT_MSC file: $SIFT_MSC";
 while(my $line = <FILE>){
     chomp $line;
     my ($gene, $msc) = (split(/\t/, $line))[0,8];
-    $hash_all{"SIFT_MSC"}{$gene} = $msc;
+    $Annotations{"SIFT_MSC"}{$gene} = $msc;
 }
 close FILE;
 
-for my $key (keys %hash_all) {
-    $hash_all{$key}{"output"} = [];
+open(FILE, "$PHARMO") or die "Unable to open PHARMO file: $PHARMO";
+while(my $line = <FILE>){
+    chomp $line;
+    
+    my ($drug, $area, $gene_clean, $gene, $type) = split(/\t/, $line);
+    
+    my @gene_list = split(/,/, $gene_clean);   #gene names are separated by comma and possible space
+    s/ +// for @gene_list;   #remove white space around gene names
+    for my $gene (@gene_list){
+        my $out = join("|", ($drug, $area, $gene, $type));
+        # since there could be more than one drug for a gene we need to append the fields
+        $Annotations{"Pharmo"}{$gene} .= "$out;  ";
+    }
+}
+close FILE;
+
+for my $key (keys %Annotations) {
+    $Annotations{$key}{"output"} = [];
 }
 
 
@@ -249,27 +266,28 @@ while(my $line = <STDIN>) {
     my $loc = "chr$chrom:$position";
     
     for my $gene (@genes){
-        for my $key (keys %hash_all) {
-            if(exists $hash_all{$key}{$gene}){
-                push (@{$hash_all{$key}{"output"}}, $hash_all{$key}{$gene});
+        for my $key (keys %Annotations) {
+            if(exists $Annotations{$key}{$gene}){
+                push (@{$Annotations{$key}{"output"}}, $Annotations{$key}{$gene});
             }
         }
     }
 
+    # going through each header we get the annotation for that column
     for my $h (@header) {
-        @{$hash_all{$h}{"output"}} or @{$hash_all{$h}{"output"}} = ($DATA_NA);
-        push( @output, join(";", @{$hash_all{$h}{"output"}}) );
+        @{$Annotations{$h}{"output"}} or @{$Annotations{$h}{"output"}} = ($DATA_NA);
+        push( @output, join(";", @{$Annotations{$h}{"output"}}) );
     }
     
     # check for Emerge pathogenic SNPs
-    $hash_all{"EmergeSNP"} or $hash_all{"EmergeSNP"} = ".";
-    push( @output, $hash_all{"EmergeSNP"});
+    $Annotations{"EmergeSNP"} or $Annotations{"EmergeSNP"} = ".";
+    push( @output, $Annotations{"EmergeSNP"});
     
     say join("\t", @output);
     
     # clear the output arrays to be read for the next line
-    for my $key (keys %hash_all) {
-        $hash_all{$key}{"output"} = [];
+    for my $key (keys %Annotations) {
+        $Annotations{$key}{"output"} = [];
     }
     
 }

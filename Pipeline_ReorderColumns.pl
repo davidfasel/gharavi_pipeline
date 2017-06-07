@@ -17,7 +17,8 @@ my @columns = qw(
   CLINSIG  CLNDBN
   
   GENES  
-    KidDisorder KidComment KidInheritence MouseGene MouseTerm OMIM_Disorder Emerge EmergeSNP  
+    KidDisorder KidComment KidInheritence MouseGene MouseTerm OMIM_Disorder 
+    Emerge EmergeSNP  Pharmo
     RVI  RVI%  HI  HI_imp  HI%  HI%_imp GDI  GDI_Phred  GDI_Damage   
     LOFRare.al  TruncRare.al  FrameRare.al  SpliceRare.al  MisRare.al.Poly>0.9
     LOF.al  Trunc.al  Frame.al  Splice.al 
@@ -33,9 +34,24 @@ my @columns = qw(
   
   ==snpEFF  GeneEFF  FuncEFF  DetailsEFF
   
-  ==Freq All_ESP EUR_ESP AFR_ESP All_1KG Afr_1KG Amr_1KG Eas_1KG Eur_1KG Sas_1KG 
-    ALL_Exac AFR_Exac AMR_Exac EAS_Exac FIN_Exac NFE_Exac OTH_Exac SAS_Exac  
-    ALL_Exac_nontcga  AFR_Exac_nontcga  AMR_Exac_nontcga  EAS_Exac_nontcga  FIN_Exac_nontcga  NFE_Exac_nontcga  OTH_Exac_nontcga  SAS_Exac_nontcga
+  ==Freq  All_ESP 
+          EUR_ESP 
+          AFR_ESP 
+          All_1KG 
+          Afr_1KG 
+          Amr_1KG 
+          Eas_1KG 
+          Eur_1KG 
+          Sas_1KG 
+          gnomAD_ALL
+          gnomAD_AFR
+          gnomAD_AMR
+          gnomAD_ASJ
+          gnomAD_EAS
+          gnomAD_FIN
+          gnomAD_NFE
+          gnomAD_OTH
+          gnomAD_SAS
 );
 #SVM_PROBABILITY  SVM_POSTERIOR
 
