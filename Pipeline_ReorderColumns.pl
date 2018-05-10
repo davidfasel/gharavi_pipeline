@@ -18,7 +18,7 @@ my @columns = qw(
   
   GENES  
     KidDisorder KidComment KidInheritence MouseGene MouseTerm OMIM_Disorder 
-    Emerge EmergeSNP  Pharmo
+    Emerge EmergeSNP  Pharma
     RVI  RVI%  HI  HI_imp  HI%  HI%_imp GDI  GDI_Phred  GDI_Damage   
     LOFRare.al  TruncRare.al  FrameRare.al  SpliceRare.al  MisRare.al.Poly>0.9
     LOF.al  Trunc.al  Frame.al  Splice.al 
@@ -34,25 +34,14 @@ my @columns = qw(
   
   ==snpEFF  GeneEFF  FuncEFF  DetailsEFF
   
-  ==Freq  All_ESP 
-          EUR_ESP 
-          AFR_ESP 
-          All_1KG 
-          Afr_1KG 
-          Amr_1KG 
-          Eas_1KG 
-          Eur_1KG 
-          Sas_1KG 
-          gnomAD_ALL
-          gnomAD_AFR
-          gnomAD_AMR
-          gnomAD_ASJ
-          gnomAD_EAS
-          gnomAD_FIN
-          gnomAD_NFE
-          gnomAD_OTH
-          gnomAD_SAS
+  ==Freq  
+    gnomAD_ALL gnomAD_AFR gnomAD_AMR gnomAD_ASJ gnomAD_EAS gnomAD_FIN gnomAD_NFE gnomAD_OTH gnomAD_SAS
+    GME_NWA  GME_NEA  GME_AP  GME_Israel  GME_SD  GME_TP  GME_CA
 );
+
+# the following are included in Gnomad
+# All_ESP EUR_ESP AFR_ESP All_1KG Afr_1KG Amr_1KG Eas_1KG Eur_1KG Sas_1KG 
+
 #SVM_PROBABILITY  SVM_POSTERIOR
 
 #   ==SeattleSeq  geneList  functionGVS  functionDBSNP  accession  aminoAcids  proteinPosition

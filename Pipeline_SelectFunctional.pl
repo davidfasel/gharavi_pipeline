@@ -161,7 +161,7 @@ while(my $line = <FILE>) {
     );
 
     push(@mutationSeaSeq, split("[,/]", $info_hash{"FG"})) if $info_hash{"FG"};
-    push(@mutationSeaSeq, split("[,/]", $info_hash{"FG"})) if $info_hash{"FD"};
+    push(@mutationSeaSeq, split("[,/]", $info_hash{"FD"})) if $info_hash{"FD"};
 
     my @snpEff = split(",", $info_hash{"EFF"});
     for my $transcript (@snpEff) {

@@ -22,16 +22,16 @@ my $QUALITY_FILTER = "";
 #my $PASS_FILTER = "--apply-filters '.,PASS,FILTER'";  # for targeted seq we allow FILTER
 my $PASS_FILTER = "--apply-filters ''";  # dont filter for now until we better understand VQS Lod filters.  
 
-my $KIDNEY_GENES = "$PUBLIC_DB/GeneLists/KidneyGenes6.txt";
-my $MOUSE_GENES  = "$PUBLIC_DB/GeneLists/CAKUT_genes-mouse.txt";
-my $OMIM         = "$PUBLIC_DB/GeneLists/OMIM_genemap.txt";
-my $HI           = "$PUBLIC_DB/HI/HI_prediction.bed";
-my $HI_IMP       = "$PUBLIC_DB/HI/HI_prediction_with_imputation.bed";
-my $RVI          = "$PUBLIC_DB/RVI/Genic_Intolerance_Scores.txt";
+# my $KIDNEY_GENES = "$PUBLIC_DB/GeneLists/KidneyGenes6.txt";
+# my $MOUSE_GENES  = "$PUBLIC_DB/GeneLists/CAKUT_genes-mouse.txt";
+# my $OMIM         = "$PUBLIC_DB/GeneLists/OMIM_genemap.txt";
+# my $HI           = "$PUBLIC_DB/HI/HI_prediction.bed";
+# my $HI_IMP       = "$PUBLIC_DB/HI/HI_prediction_with_imputation.bed";
+# my $RVI          = "$PUBLIC_DB/RVI/Genic_Intolerance_Scores.txt";
 my $HG19_FASTA   = "$PUBLIC_DB/1000G/human_g1k_v37.fasta.gz";
-my $GDI          = "$PUBLIC_DB/GDI/GDI_full_10282015.txt";
-my $EXAC         = "$PUBLIC_DB/Exac/exac_LOF_alleles_by_gene.txt";
-my $CONSTRAINT   = "$PUBLIC_DB/Exac/forweb_cleaned_exac_r03_march16_z_data_pLI.txt";
+# my $GDI          = "$PUBLIC_DB/GDI/GDI_full_10282015.txt";
+# my $EXAC         = "$PUBLIC_DB/Exac/exac_LOF_alleles_by_gene.txt";
+# my $CONSTRAINT   = "$PUBLIC_DB/Exac/forweb_cleaned_exac_r03_march16_z_data_pLI.txt";
 
 my $JAVAPATH = "./:/media/Data/software/jars/*:" .
   "/media/Data/software/jars/httpunit-1.7/lib/*:" .
@@ -180,14 +180,17 @@ my $proto = "refGene,dbnsfp33a,clinvar_20170130," .
             "popfreq_max_20150413," .
             "avsnp147," .
             "gnomad_exome," .
-            "esp6500siv2_ea,esp6500siv2_aa,esp6500siv2_all," .
-            "1000g2015aug_all,1000g2015aug_afr,1000g2015aug_amr,1000g2015aug_eas,1000g2015aug_eur,1000g2015aug_sas";
+            "gme";
+
+
+#             "esp6500siv2_ea,esp6500siv2_aa,esp6500siv2_all," .
+#             "1000g2015aug_all,1000g2015aug_afr,1000g2015aug_amr,1000g2015aug_eas,1000g2015aug_eur,1000g2015aug_sas";
 
 my $cmd = "perl $SOFTWARE/annovar/table_annovar.pl $input_file $SOFTWARE/annovar/humandb/ 
     -buildver hg19 
     -out $raw_vcf_file.annovar
     -protocol $proto
-    -operation g,f,f,f,f,f,f,f,f,f,f,f,f,f,f
+    -operation g,f,f,f,f,f,f
     -nastring . 
     -vcfinput 
     -remove 
@@ -278,6 +281,11 @@ system "perl $PIPELINE/Pipeline_ReorderColumns.pl < $disorder_file.temp > $disor
 
 
 #### Split output file into smaller files so they can be opened in Excel
+# creates 2 files 
+# -known genes: to see if the gene is known by clinvar, omim, or our 
+#  custom lists for kidney genes and eMerge genes
+# -deleterious: filters out variants that have functional types
+# that are less likely to be pathogenic (INTRAGENIC|SPLICE_SITE_REGION|ncRNA|non-coding)
 $time = &getTime;
 say "== $time: Splitting main annotation file into smaller files";
 system "perl $PIPELINE/Pipeline_SplitFile.pl $disorder_file";

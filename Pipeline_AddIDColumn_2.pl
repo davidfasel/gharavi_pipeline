@@ -61,7 +61,9 @@ while(<FILE>) {
   for my $id (@ids) {
     $id =~ s/(\(.+)//;
     my $geno = $1 || "";
-    push(@new_ids, $samples{$id} . $geno);
+    
+    my $new_id = $samples{$id} || ".";
+    push(@new_ids, $new_id . $geno);
   }
   
   my $new_ids_string = join(",", @new_ids). ",";

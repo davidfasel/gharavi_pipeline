@@ -1,4 +1,11 @@
 #!/usr/bin/perl
+
+# creates 2 files 
+# -known genes: gene is known by clinvar, omim, or our 
+#  custom lists for kidney genes and eMerge genes
+# -deleterious: filters out variants that have functional types
+# that are less likely to be pathogenic (INTRAGENIC|SPLICE_SITE_REGION|ncRNA|non-coding)
+
 use warnings;
 use strict;
 use feature 'say';

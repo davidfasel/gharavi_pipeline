@@ -23,7 +23,7 @@ my $EMERGE_SNP   = "$PUBLIC_DB/GeneLists/EmergeSNPs.tsv";
 my $CADD_MSC       = "$PUBLIC_DB/GeneLists/MSC_CADD_95.tsv";
 my $SIFT_MSC       = "$PUBLIC_DB/GeneLists/MSC_Sift_95.tsv";
 my $Poly_MSC       = "$PUBLIC_DB/GeneLists/MSC_PolyPhen_95.tsv";
-my $PHARMO         = "$PUBLIC_DB/GeneLists/pharmocogenetics.tsv";
+my $PHARMA         = "$PUBLIC_DB/GeneLists/pharmacogenetics.tsv";
 
 
 # IMPORTANT: update these header names in main Pipeline
@@ -38,7 +38,7 @@ my @header = qw(
   Exp_LOF.var  N_LOF.var Z_LOF  pLI
   CADD_MSC  PolyPhen_MSC  SIFT_MSC
   Emerge  EmergeSNP
-  Pharmo
+  Pharma
 );
 
 #
@@ -216,7 +216,7 @@ while(my $line = <FILE>){
 }
 close FILE;
 
-open(FILE, "$PHARMO") or die "Unable to open PHARMO file: $PHARMO";
+open(FILE, "$PHARMA") or die "Unable to open PHARMA file: $PHARMA";
 while(my $line = <FILE>){
     chomp $line;
     
@@ -227,7 +227,7 @@ while(my $line = <FILE>){
     for my $gene (@gene_list){
         my $out = join("|", ($drug, $area, $gene, $type));
         # since there could be more than one drug for a gene we need to append the fields
-        $Annotations{"Pharmo"}{$gene} .= "$out;  ";
+        $Annotations{"Pharma"}{$gene} .= "$out;  ";
     }
 }
 close FILE;

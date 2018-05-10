@@ -4,6 +4,7 @@ use strict;
 use feature 'say';
 use Getopt::Long;  #process command line arguments
 use List::MoreUtils qw(uniq);
+use List::Util 'max';
 use Scalar::Util qw(looks_like_number);
 
 my $MISSING = ".";  #define what should be shown if field is missing (can be empty string if desired)
@@ -18,7 +19,7 @@ GetOptions (
 
 my (%dbsnp);
 
-# NOTE!  if any of these headers change, they need to be updated in the main pipeline file
+# NOTE!  if any of these headers change, they need to be updated in Pipeline_ReorderColumns.pl
 my @header = qw(
     CHROM  POS  ID  avsnp147  REF  ALT  QUAL  FILTER  INFO  FORMAT GENOTYPES 
     Sample_ID(GT) Samples_With_Variant  Hets  Homs  AD_Pass  Missing  MAF_max  
@@ -69,12 +70,17 @@ my @header = qw(
     
     ==snpEFF  GeneEFF  FuncEFF  DetailsEFF
     
-    ==Freq  All_ESP  EUR_ESP  AFR_ESP
-    All_1KG  Afr_1KG  Amr_1KG  Eas_1KG  Eur_1KG  Sas_1KG
+    ==Freq  
+
     gnomAD_ALL  gnomAD_AFR  gnomAD_AMR  gnomAD_ASJ gnomAD_EAS 
     gnomAD_FIN  gnomAD_NFE  gnomAD_OTH  gnomAD_SAS
+    GME_NWA  GME_NEA  GME_AP  GME_Israel  GME_SD  GME_TP  GME_CA
 );
-                  
+        
+    # gnomad already includes 1000 Genomes and ESP
+    # All_ESP  EUR_ESP  AFR_ESP     
+    # All_1KG  Afr_1KG  Amr_1KG  Eas_1KG  Eur_1KG  Sas_1KG
+         
 #    ==dbSNP  141_ID  141_REF  141_ALT  141_AF  AlleleStatus  
 say join("\t", @header);
  
@@ -94,8 +100,9 @@ my @sample_ids;
 while(my $line = <FILE>)
 {   
     print STDERR "          Processing Line $. \r" if ($. % 1000 == 0);  
-    
     chomp($line);
+    
+    my %output;
     my @var=split(/\t/,$line);
     
     # get the sample IDs
@@ -119,7 +126,34 @@ while(my $line = <FILE>)
     
     
     #### to filter by a different population, replace "PopFreqMax" below
-    my $MAF_max = $info_hash{"PopFreqMax"} || $MISSING;
+    my @MAFs = (qw / PopFreqMax
+                       gnomAD_ALL
+                       gnomAD_AFR
+                       gnomAD_AMR
+                       gnomAD_ASJ
+                       gnomAD_EAS
+                       gnomAD_FIN
+                       gnomAD_NFE
+                       gnomAD_OTH
+                       gnomAD_SAS
+                       GME_AF
+                       GME_NWA
+                       GME_NEA
+                       GME_AP
+                       GME_Israel
+                       GME_SD
+                       GME_TP
+                       GME_CA /);
+                           
+    my @maxMAF = (0);
+    for my $maf (@MAFs) {
+      if (looks_like_number $info_hash{$maf}) {
+        push(@maxMAF, $info_hash{$maf});
+      }
+    }
+
+    my $MAF_max = max(@maxMAF);
+    
     next if looks_like_number($MAF_max) && $MAF_max > $MAF_filter; 
 
     # get the index of the depth (DP) value in the FORMAT field.  
@@ -205,87 +239,161 @@ while(my $line = <FILE>)
     $clinout =~ s/\\x2c/,/g;  #commas are encoded, so change back to comma
     $clinout = "." if $clinsig eq ".";
     
-    my @out = (
-      $var[0], $var[1],  $var[2],
-      $info_hash{"avsnp147"} || $MISSING,
-      $var[3], $var[4], $var[5], $var[6], $var[7],
-      $format,
-      $genotypes,
-      $samp,
-      $num_samples,
-      $hets,
-      $homs,
-      $PASS_AD,
-      $missing,
-      $MAF_max,
-
-      $info_hash{'SVM_PROBABILITY'} || $MISSING, 
-      $info_hash{'SVM_POSTERIOR'} || $MISSING,
-      
-      $gene,
-      $clinsig,
-      $clinout,
-    );
+  
     
+    $output{'CHROM'} = $var[0];
+    $output{'POS'} = $var[1];
+    $output{'ID'} = $var[2];
+    $output{'avsnp147'} = $info_hash{"avsnp147"} || $MISSING;
+    $output{'REF'} = $var[3];
+    $output{'ALT'} = $var[4];
+    $output{'QUAL'} = $var[5];
+    $output{'FILTER'} = $var[6];
+    $output{'INFO'} = $var[7];
+    $output{'FORMAT'} = $format;
+    $output{'GENOTYPES'} = $genotypes;
+    $output{'Sample_ID(GT)'} = $samp;
+    $output{'Samples_With_Variant'} = $num_samples;
+    $output{'Hets'} = $hets;
+    $output{'Homs'} = $homs;
+    $output{'AD_Pass'} = $PASS_AD;
+    $output{'Missing'} = $missing;
+    $output{'MAF_max'} = $MAF_max;
+    
+    $output{'GENES'} = $gene;
+    $output{'CLINSIG'} = $clinsig;
+    $output{'CLNDBN'} = $clinout;
+    
+    $output{'SVM_PROBABILITY'} = &getItem(\%info_hash, 'SVM_PROBABILITY');
+    $output{'SVM_POSTERIOR'}   = &getItem(\%info_hash, 'SVM_POSTERIOR');
+    
+                
+         
 
-    ##### get Seattle Seq data if in INFO field
+
+    ##### Seattle Seq ########
+    
+    # get Seattle Seq data if in INFO field
     #FG:functionGVS FD:functionDBSNP GM:accession GL:geneList AAC:aminoAcids PP:proteinPosition 
     #CDP:cDNAPosition PP:polyPhen CP:scorePhastCons CG:consScoreGERP CADD:scoreCADD 
     #AA:chimpAllele RM:repeatMasker RT:tandemRepeat CA:clinicalAssociation DSP:distanceToSplice 
     #KP:keggPathway CPG:cpgIslands tfbs:transFactorBindingSites PPI:ProteinProteinInteraction 
     #PAC:proteinAccession GS:granthamScore MR:microRNAs
-    push(@out, "==");
-    my @ssFields = qw(
-      GL FG  FD  GM  AAC  PP  CDP  AA  CA  DSP  KP  TFBS  PPI  PAC  CADD  PH  CP  CG  GS  MR
-    );
-    for my $item (@ssFields) {
-      my $value =  (exists $info_hash{$item}) ? $info_hash{$item} : $MISSING;
-      $value =~ s/^V\$// if ($item eq "TFBS");
-      push(@out, $value);
+    $output{'geneList'}            = &getItem(\%info_hash, 'GL');
+    $output{'functionGVS'}         = &getItem(\%info_hash, 'FG'); 
+    $output{'functionDBSNP'}       = &getItem(\%info_hash, 'FD'); 
+    $output{'accession'}           = &getItem(\%info_hash, 'GM'); 
+    $output{'aminoAcids'}          = &getItem(\%info_hash, 'AAC'); 
+    $output{'proteinPosition'}     = &getItem(\%info_hash, 'PP'); 
+    $output{'cDNAPosition'}        = &getItem(\%info_hash, 'CDP'); 
+    $output{'chimpAllele'}         = &getItem(\%info_hash, 'AA'); 
+    $output{'clinicalAssociation'} = &getItem(\%info_hash, 'CA'); 
+    $output{'distanceToSplice'}    = &getItem(\%info_hash, 'DSP'); 
+    $output{'keggPathway'}         = &getItem(\%info_hash, 'KP'); 
+    $output{'tfbs'}                = &getItem(\%info_hash, 'TFBS'); 
+    $output{'PPI'}                 = &getItem(\%info_hash, 'PPI'); 
+    $output{'proteinAccession'}    = &getItem(\%info_hash, 'PAC'); 
+    $output{'CADD'}                = &getItem(\%info_hash, 'CADD'); 
+    $output{'PolyPhen'}            = &getItem(\%info_hash, 'PH'); 
+    $output{'PhastCons'}           = &getItem(\%info_hash, 'CP'); 
+    $output{'GERPConsScore'}       = &getItem(\%info_hash, 'CG'); 
+    $output{'granthamScore'}       = &getItem(\%info_hash, 'GS'); 
+    $output{'microRNAs'}           = &getItem(\%info_hash, 'MR'); 
+    
+    $output{'tfbs'} =~ s/^V\$// ;
+    
+    
+
+    #####  Annovar ########
+
+    my $gene_detail = &getItem(\%info_hash, 'AAChange.refGene');
+    if (not $gene_detail or $gene_detail eq ".") {
+      $gene_detail = &getItem(\%info_hash, 'GeneDetail.refGene');
     }
-
-    #####  Annovar
-    my $gene_detail = $info_hash{"AAChange.refGene"};
-    $gene_detail = $info_hash{"GeneDetail.refGene"} if (not $gene_detail or $gene_detail eq ".");
-
+    
     $info_hash{"Func.refGene"} =~ s/\\x3b/;/g;
-    push(@out, "==",
-        $info_hash{"Gene.refGene"} || $MISSING,
-        $info_hash{"Func.refGene"} || $MISSING,
-        $info_hash{"ExonicFunc.refGene"} || $MISSING,
-        $gene_detail || $MISSING,
-    );
-    my @fields = qw(
-        SIFT_score  SIFT_pred
-        Polyphen2_HDIV_score  Polyphen2_HDIV_pred  Polyphen2_HVAR_score  Polyphen2_HVAR_pred
-        LRT_score  LRT_pred
-        MutationTaster_score  MutationTaster_pred  MutationAssessor_score  MutationAssessor_pred
-        FATHMM_score  FATHMM_pred
-        PROVEAN_score  PROVEAN_pred
-        VEST3_score
-        CADD_raw  CADD_phred
-        DANN_score
-        fathmm-MKL_coding_score  fathmm-MKL_coding_pred
-        MetaSVM_score  MetaSVM_pred  MetaLR_score  MetaLR_pred
-        integrated_fitCons_score  integrated_confidence_value
-        GERP++_RS
-        phyloP7way_vertebrate  phyloP20way_mammalian
-        phastCons7way_vertebrate  phastCons20way_mammalian
-        SiPhy_29way_logOdds
-    );
-    for my $item (@fields) {
-      my $value =  (exists $info_hash{$item}) ? $info_hash{$item} : $MISSING;
-      push(@out, $value);
-    }
+    
+    $output{'GeneAnn'}    = &getItem(\%info_hash, 'Gene.refGene');
+    $output{'FuncAnn'}    = &getItem(\%info_hash, 'Func.refGene');
+    $output{'Exonic'}     = &getItem(\%info_hash, 'ExonicFunc.refGene');
+    $output{'DetailsAnn'} = $gene_detail;    
+    $output{'SIFT_score'} = &getItem(\%info_hash, 'SIFT_score');
+    $output{'SIFT_pred'}  = &getItem(\%info_hash, 'SIFT_pred');
+    $output{'Polyphen2_HDIV_score'} = &getItem(\%info_hash, 'Polyphen2_HDIV_score');
+    $output{'Polyphen2_HDIV_pred'}  = &getItem(\%info_hash, 'Polyphen2_HDIV_pred');
+    $output{'Polyphen2_HVAR_score'} = &getItem(\%info_hash, 'Polyphen2_HVAR_score');
+    $output{'Polyphen2_HVAR_pred'}  = &getItem(\%info_hash, 'Polyphen2_HVAR_pred');
+    $output{'LRT_score'}  = &getItem(\%info_hash, 'LRT_score');
+    $output{'LRT_pred'}   = &getItem(\%info_hash, 'LRT_pred');
+    $output{'MutationTaster_score'}   = &getItem(\%info_hash, 'MutationTaster_score');
+    $output{'MutationTaster_pred'}    = &getItem(\%info_hash, 'MutationTaster_pred');
+    $output{'MutationAssessor_score'} = &getItem(\%info_hash, 'MutationAssessor_score');
+    $output{'MutationAssessor_pred'}  = &getItem(\%info_hash, 'MutationAssessor_pred');
+    $output{'FATHMM_score'}  = &getItem(\%info_hash, 'FATHMM_score');
+    $output{'FATHMM_pred'}   = &getItem(\%info_hash, 'FATHMM_pred');
+    $output{'PROVEAN_score'} = &getItem(\%info_hash, 'PROVEAN_score');
+    $output{'PROVEAN_pred'}  = &getItem(\%info_hash, 'PROVEAN_pred');
+    $output{'VEST3_score'}   = &getItem(\%info_hash, 'VEST3_score');
+    $output{'CADD_raw'}      = &getItem(\%info_hash, 'CADD_raw');
+    $output{'CADD_ann'}      = &getItem(\%info_hash, 'CADD_phred');
+    $output{'DANN_score'}    = &getItem(\%info_hash, 'DANN_score');
+    $output{'fathmm-MKL_coding_score'} = &getItem(\%info_hash, 'fathmm-MKL_coding_score');
+    $output{'fathmm-MKL_coding_pred'}  = &getItem(\%info_hash, 'fathmm-MKL_coding_pred');
+    $output{'MetaSVM_score'} = &getItem(\%info_hash, 'MetaSVM_score');
+    $output{'MetaSVM_pred'}  = &getItem(\%info_hash, 'MetaSVM_pred');
+    $output{'MetaLR_score'}  = &getItem(\%info_hash, 'MetaLR_score');
+    $output{'MetaLR_pred'}   = &getItem(\%info_hash, 'MetaLR_pred');
+    $output{'integrated_fitCons_score'}    = &getItem(\%info_hash, 'integrated_fitCons_score');
+    $output{'integrated_confidence_value'} = &getItem(\%info_hash, 'integrated_confidence_value');
+    $output{'GERP++_RS'}                   = &getItem(\%info_hash, 'GERP++_RS');
+    $output{'phyloP7way_vertebrate'}       = &getItem(\%info_hash, 'phyloP7way_vertebrate');
+    $output{'phyloP20way_mammalian'}       = &getItem(\%info_hash, 'phyloP20way_mammalian');
+    $output{'phastCons7way_vertebrate'}    = &getItem(\%info_hash, 'phastCons7way_vertebrate');
+    $output{'phastCons20way_mammalian'}    = &getItem(\%info_hash, 'phastCons20way_mammalian');
+    $output{'SiPhy_29way_logOdds'}         = &getItem(\%info_hash, 'SiPhy_29way_logOdds');
+    
+    ##### get population frequencies (from annovar)
+    # gnomad already includes 1000 Genomes and ESP
+#     $output{'All_ESP'} = &getItem(\%info_hash, 'esp6500siv2_ea');
+#     $output{'EUR_ESP'} = &getItem(\%info_hash, 'esp6500siv2_aa');
+#     $output{'AFR_ESP'} = &getItem(\%info_hash, 'esp6500siv2_all');
+#     $output{'All_1KG'} = &getItem(\%info_hash, '1000g2015aug_all');
+#     $output{'Afr_1KG'} = &getItem(\%info_hash, '1000g2015aug_afr');
+#     $output{'Amr_1KG'} = &getItem(\%info_hash, '1000g2015aug_amr');
+#     $output{'Eas_1KG'} = &getItem(\%info_hash, '1000g2015aug_eas');
+#     $output{'Eur_1KG'} = &getItem(\%info_hash, '1000g2015aug_eur');
+#     $output{'Sas_1KG'} = &getItem(\%info_hash, '1000g2015aug_sas');
+    $output{'gnomAD_ALL'} = &getItem(\%info_hash, 'gnomAD_exome_ALL');
+    $output{'gnomAD_AFR'} = &getItem(\%info_hash, 'gnomAD_exome_AFR');
+    $output{'gnomAD_AMR'} = &getItem(\%info_hash, 'gnomAD_exome_AMR');
+    $output{'gnomAD_ASJ'} = &getItem(\%info_hash, 'gnomAD_exome_ASJ');
+    $output{'gnomAD_EAS'} = &getItem(\%info_hash, 'gnomAD_exome_EAS');
+    $output{'gnomAD_FIN'} = &getItem(\%info_hash, 'gnomAD_exome_FIN');
+    $output{'gnomAD_NFE'} = &getItem(\%info_hash, 'gnomAD_exome_NFE');
+    $output{'gnomAD_OTH'} = &getItem(\%info_hash, 'gnomAD_exome_OTH');
+    $output{'gnomAD_SAS'} = &getItem(\%info_hash, 'gnomAD_exome_SAS');
+    $output{'GME_AF'}     = &getItem(\%info_hash, 'GME_AF');
+    $output{'GME_NWA'}    = &getItem(\%info_hash, 'GME_NWA');
+    $output{'GME_NEA'}    = &getItem(\%info_hash, 'GME_NEA');
+    $output{'GME_AP'}     = &getItem(\%info_hash, 'GME_AP');
+    $output{'GME_Israel'} = &getItem(\%info_hash, 'GME_Israel');
+    $output{'GME_SD'}     = &getItem(\%info_hash, 'GME_SD');
+    $output{'GME_TP'}     = &getItem(\%info_hash, 'GME_TP');
+    $output{'GME_CA'}     = &getItem(\%info_hash, 'GME_CA');
     
     
-    # snpEff puts all info in one key: "EFF".  Each transcript is separated by a comma:
+    
+    
+    ####### snpEff ########
+    
+    # puts all info in one key: "EFF".  Each transcript is separated by a comma:
     # EFF=DOWNSTREAM(MODIFIER||4279||790|PERM1|protein_coding|CODING|NM_001291366.1||1),
     # NON_SYNONYMOUS_CODING(MODERATE|MISSENSE|Gcc/Acc|A176T|611|PLEKHN1|protein_coding|CODING|NM_032129.2|6|1)
     #
     # And the portion within the parenthesis can have these values (actual possible values are in quotes):
     # ("MODIFIER/HIGH/MODERATE/LOW" | "MISSENSE/NONSENSE/SILENT" | seq_change | AA_change | ??? |
     #   Gene | "protein_coding" | "CODING/NON_CODING" | Transcript | ?? | ??)
+    
     $info_hash{"EFF"} //= "";
     my @snpEff = split(",", $info_hash{"EFF"});
     my (@snpEffGenes, @snpEffTypes, @snpEffDetails);
@@ -300,41 +408,27 @@ while(my $line = <FILE>)
     }
     @snpEffGenes = ($MISSING) if not @snpEffGenes;
 
-    push(@out, "==",
-                  join(",", uniq(@snpEffGenes)),
-                  join(",", uniq@snpEffTypes),
-                  join(",", @snpEffDetails));
+    
+    $output{'GeneEFF'} = join(",", uniq(@snpEffGenes));
+    $output{'FuncEFF'} = join(",", uniq(@snpEffTypes));
+    $output{'DetailsEFF'} = join(",", @snpEffDetails);
+     
     
     
-    
-    ##### get population frequencies (from annovar)
-    push(@out, "==");
-    my @freqFields = qw(
-      esp6500siv2_ea
-      esp6500siv2_aa
-      esp6500siv2_all
-      1000g2015aug_all
-      1000g2015aug_afr
-      1000g2015aug_amr
-      1000g2015aug_eas
-      1000g2015aug_eur
-      1000g2015aug_sas
-      gnomAD_exome_ALL
-      gnomAD_exome_AFR
-      gnomAD_exome_AMR
-      gnomAD_exome_ASJ
-      gnomAD_exome_EAS
-      gnomAD_exome_FIN
-      gnomAD_exome_NFE
-      gnomAD_exome_OTH
-      gnomAD_exome_SAS
 
-    );
-    for my $item (@freqFields) {
-      my $value =  (exists $info_hash{$item}) ? $info_hash{$item} : $MISSING;
-      push(@out, $value);
-    }
     
+    ##### output to file ########
+    
+    my @out;
+    for my $h (@header) {
+      #say STDERR $h, $output{$h};
+      if ($h =~ /==/) {
+          push(@out, "==");
+      }
+      else {
+          push(@out, $output{$h});
+      }
+    }
     
 
     say join("\t", @out);
@@ -343,8 +437,15 @@ while(my $line = <FILE>)
 }
 
 print STDERR "\n";
-
 close FILE;
+
+
+
+sub getItem() {
+  my %dict = %{$_[0]};
+  my $item = $_[1];
+  return (exists $dict{$item}) ? $dict{$item} : $MISSING;
+}
 
 
 
