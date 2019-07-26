@@ -320,10 +320,11 @@ while(my $line = <FILE>)
       $gene_detail = &getItem(\%info_hash, 'GeneDetail.refGene');
     }
     
-    $info_hash{"Func.refGene"} =~ s/\\x3b/;/g;
+    #$info_hash{"Func.refGene"} =~ s/\\x3b/;/g;
     
     $output{'GeneAnn'}    = &getItem(\%info_hash, 'Gene.refGene');
     $output{'FuncAnn'}    = &getItem(\%info_hash, 'Func.refGene');
+    $output{'FuncAnn'}    =~ s/\\x3b/;/g;
     $output{'Exonic'}     = &getItem(\%info_hash, 'ExonicFunc.refGene');
     $output{'DetailsAnn'} = $gene_detail;    
     $output{'SIFT_score'} = &getItem(\%info_hash, 'SIFT_score');
