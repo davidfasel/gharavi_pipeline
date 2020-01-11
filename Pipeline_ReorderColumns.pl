@@ -7,36 +7,111 @@ use Getopt::Long;  #process command line arguments
 
 # desired column order
 my @columns = qw(
-  CHROM  POS  ID  avsnp147  REF  ALT  QUAL  FILTER  FORMAT  GENOTYPES  
-  Sample_ID(GT)  Samples_With_Variant  Hets  Homs  AD_Pass  Missing 
-  DetailsAnn
-  MAF_max  MostDeleterious    
-  CADD_ann  CADD_MSC  
-  Polyphen2_HVAR_score PolyPhen_MSC  
-  SIFT_score  SIFT_MSC
-  CLINSIG  CLNDBN
+  CHROM  POS avsnp150  REF  ALT  QUAL  FILTER  
+  Sample_ID(GT)  Samples_With_Variant  
+  MAF_max  MostDeleterious 
   
   GENES  
     KidDisorder KidComment KidInheritence MouseGene MouseTerm OMIM_Disorder 
     Emerge EmergeSNP  Pharma
-    RVI  RVI%  HI  HI_imp  HI%  HI%_imp GDI  GDI_Phred  GDI_Damage   
+    
+  FORMAT  GENOTYPES Hets  Homs  AD_Pass  Missing 
+
+  ==snpEFF 
+    snpEffGene Annotation Impact LOF
+
+  ==Annovar  
+    AAChange.refGene 
+    Func.refGene 
+    Gene.refGene 
+    GeneDetail.refGene 
+    ExonicFunc.refGene 
+    CADD_phred 
+    CADD_raw 
+    CADD_raw_rankscore 
+    CLNALLELEID 
+    CLNDISDB 
+    CLNDN 
+    CLNREVSTAT 
+    CLNSIG 
+    DANN_rankscore 
+    DANN_score 
+    Eigen_coding_or_noncoding 
+    Eigen-PC-raw 
+    Eigen-raw 
+    FATHMM_converted_rankscore 
+    FATHMM_pred 
+    FATHMM_score 
+    fathmm-MKL_coding_pred 
+    fathmm-MKL_coding_rankscore 
+    fathmm-MKL_coding_score 
+    GenoCanyon_score 
+    GenoCanyon_score_rankscore 
+    GERP++_RS 
+    GERP++_RS_rankscore 
+    GTEx_V6p_gene 
+    GTEx_V6p_tissue 
+    integrated_confidence_value 
+    integrated_fitCons_score 
+    integrated_fitCons_score_rankscore 
+    Interpro_domain 
+    LRT_converted_rankscore 
+    LRT_pred 
+    LRT_score 
+    M-CAP_pred 
+    M-CAP_rankscore 
+    M-CAP_score 
+    MetaLR_pred 
+    MetaLR_rankscore 
+    MetaLR_score 
+    MetaSVM_pred 
+    MetaSVM_rankscore 
+    MetaSVM_score 
+    MutationAssessor_pred 
+    MutationAssessor_score 
+    MutationAssessor_score_rankscore 
+    MutationTaster_converted_rankscore 
+    MutationTaster_pred 
+    MutationTaster_score 
+    MutPred_rankscore 
+    MutPred_score 
+    phastCons100way_vertebrate 
+    phastCons100way_vertebrate_rankscore 
+    phastCons20way_mammalian 
+    phastCons20way_mammalian_rankscore 
+    phyloP100way_vertebrate 
+    phyloP100way_vertebrate_rankscore 
+    phyloP20way_mammalian 
+    phyloP20way_mammalian_rankscore 
+    Polyphen2_HDIV_pred 
+    Polyphen2_HDIV_rankscore 
+    Polyphen2_HDIV_score 
+    Polyphen2_HVAR_pred 
+    Polyphen2_HVAR_rankscore 
+    Polyphen2_HVAR_score 
+    PROVEAN_converted_rankscore 
+    PROVEAN_pred 
+    PROVEAN_score 
+    REVEL_rankscore 
+    REVEL_score 
+    SIFT_converted_rankscore 
+    SIFT_pred 
+    SIFT_score 
+    SiPhy_29way_logOdds 
+    SiPhy_29way_logOdds_rankscore 
+    VEST3_rankscore 
+    VEST3_score 
+  
+  ==MAFs  
+    G_AF G_AF_raw G_AF_male G_AF_female G_AF_afr G_AF_ami G_AF_amr G_AF_asj G_AF_eas G_AF_fin G_AF_nfe G_AF_oth G_AF_sas 
+    GME_NWA  GME_NEA  GME_AP  GME_Israel  GME_SD  GME_TP  GME_CA
+
+  ==GeneScores
+  GENES
+  RVI  RVI%  HI  HI_imp  HI%  HI%_imp GDI  GDI_Phred  GDI_Damage   
     LOFRare.al  TruncRare.al  FrameRare.al  SpliceRare.al  MisRare.al.Poly>0.9
     LOF.al  Trunc.al  Frame.al  Splice.al 
     Exp_LOF.var  N_LOF.var Z_LOF  pLI
-    
-  ==Annovar  GeneAnn FuncAnn Exonic DetailsAnn  SIFT_score  SIFT_pred Polyphen2_HDIV_score 
-    Polyphen2_HDIV_pred Polyphen2_HVAR_score Polyphen2_HVAR_pred LRT_score LRT_pred 
-    MutationTaster_score MutationTaster_pred MutationAssessor_score MutationAssessor_pred 
-    FATHMM_score FATHMM_pred PROVEAN_score PROVEAN_pred VEST3_score CADD_raw CADD_ann 
-    DANN_score fathmm-MKL_coding_score fathmm-MKL_coding_pred MetaSVM_score MetaSVM_pred MetaLR_score MetaLR_pred 
-    integrated_fitCons_score integrated_confidence_value GERP++_RS phyloP7way_vertebrate phyloP20way_mammalian 
-    phastCons7way_vertebrate phastCons20way_mammalian SiPhy_29way_logOdds
-  
-  ==snpEFF  GeneEFF  FuncEFF  DetailsEFF
-  
-  ==Freq  
-    gnomAD_ALL gnomAD_AFR gnomAD_AMR gnomAD_ASJ gnomAD_EAS gnomAD_FIN gnomAD_NFE gnomAD_OTH gnomAD_SAS
-    GME_NWA  GME_NEA  GME_AP  GME_Israel  GME_SD  GME_TP  GME_CA
 );
 
 # the following are included in Gnomad
