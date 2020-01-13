@@ -12,7 +12,7 @@ use feature 'say';
 use List::MoreUtils qw(first_index);
 
 # Header names, must be updated if header names change;
-my $CLINVAR = "CLINSIG";
+my $CLINVAR = "CLNSIG";
 my $KIDNEY  = "KidDisorder";
 my $OMIM    = "OMIM_Disorder";
 my $EMERGE  = "Emerge";
